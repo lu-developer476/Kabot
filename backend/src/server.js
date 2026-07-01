@@ -11,7 +11,9 @@ const HOST = '0.0.0.0';
 const CHAT_CONTEXT_WINDOW_SIZE = 16;
 const JSON_BODY_LIMIT = '100kb';
 const MAX_USER_MESSAGE_LENGTH = 4000;
-const { FRONTEND_URL, APP_NAME, SYSTEM_PROMPT } = env;
+const MAX_CHAT_TITLE_LENGTH = 80;
+const DEFAULT_CHAT_TITLE = 'Nueva conversación';
+const { FRONTEND_URL, APP_NAME, APP_DESCRIPTION, ASSISTANT_TONE, ASSISTANT_LANGUAGE, SYSTEM_PROMPT } = env;
 const allowedOrigins = new Set(
   FRONTEND_URL.split(',')
     .map((origin) => origin.trim())
@@ -48,6 +50,25 @@ function buildPromptMessages(historyRows) {
     { role: 'system', content: SYSTEM_PROMPT },
     ...recentMessages.map((row) => ({ role: row.role, content: row.content })),
   ];
+}
+
+function compactTitle(value, fallback = DEFAULT_CHAT_TITLE) {
+  if (typeof value !== 'string') {
+    return fallback;
+  }
+
+  const compacted = value.trim().replace(/\s+/g, ' ');
+  if (!compacted) {
+    return fallback;
+  }
+
+  return compacted.length > MAX_CHAT_TITLE_LENGTH
+    ? `${compacted.slice(0, MAX_CHAT_TITLE_LENGTH - 1)}…`
+    : compacted;
+}
+
+function titleFromMessage(content) {
+  return compactTitle(content, DEFAULT_CHAT_TITLE);
 }
 
 function validateUserMessage(rawContent) {
@@ -113,10 +134,26 @@ app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.get('/health', async (_req, res) => {
   try {
     await query('select 1');
-    res.json({ ok: true, app: APP_NAME, uptimeSeconds: Math.round(process.uptime()) });
+    res.json({
+      ok: true,
+      app: APP_NAME,
+      description: APP_DESCRIPTION,
+      model: env.OPENAI_MODEL,
+      uptimeSeconds: Math.round(process.uptime()),
+    });
   } catch (error) {
     return sendError(res, 500, 'La base de datos no está disponible.', 'Healthcheck falló.', error);
   }
+});
+
+app.get('/api/config', (_req, res) => {
+  res.json({
+    appName: APP_NAME,
+    appDescription: APP_DESCRIPTION,
+    assistantTone: ASSISTANT_TONE,
+    assistantLanguage: ASSISTANT_LANGUAGE,
+    maxUserMessageLength: MAX_USER_MESSAGE_LENGTH,
+  });
 });
 
 app.get('/api/chats', async (_req, res) => {
@@ -135,7 +172,7 @@ app.get('/api/chats', async (_req, res) => {
 
 app.post('/api/chats', async (req, res) => {
   try {
-    const title = req.body?.title?.trim() || 'Nueva conversación';
+    const title = compactTitle(req.body?.title);
     const result = await query(
       `insert into chats (title)
        values ($1)
@@ -146,6 +183,41 @@ app.post('/api/chats', async (req, res) => {
     res.status(201).json({ chat: result.rows[0] });
   } catch (error) {
     return sendError(res, 500, 'No se pudo crear el chat.', 'Error al crear un chat.', error);
+  }
+});
+
+app.patch('/api/chats/:chatId', async (req, res) => {
+  try {
+    const title = compactTitle(req.body?.title);
+    const result = await query(
+      `update chats
+       set title = $1, updated_at = now()
+       where id = $2
+       returning id, title, created_at, updated_at`,
+      [title, req.params.chatId]
+    );
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'El chat no existe.' });
+    }
+
+    return res.json({ chat: result.rows[0] });
+  } catch (error) {
+    return sendError(res, 500, 'No se pudo renombrar el chat.', `Error al renombrar el chat ${req.params.chatId}.`, error);
+  }
+});
+
+app.delete('/api/chats/:chatId', async (req, res) => {
+  try {
+    const result = await query('delete from chats where id = $1 returning id', [req.params.chatId]);
+
+    if (result.rowCount === 0) {
+      return res.status(404).json({ error: 'El chat no existe.' });
+    }
+
+    return res.status(204).send();
+  } catch (error) {
+    return sendError(res, 500, 'No se pudo eliminar el chat.', `Error al eliminar el chat ${req.params.chatId}.`, error);
   }
 });
 
@@ -183,7 +255,7 @@ app.post('/api/chats/:chatId/messages', async (req, res) => {
   const { content } = validation;
 
   try {
-    const chatExists = await query('select id from chats where id = $1 limit 1', [chatId]);
+    const chatExists = await query('select id, title from chats where id = $1 limit 1', [chatId]);
     if (chatExists.rowCount === 0) {
       return res.status(404).json({ error: 'El chat no existe.' });
     }
@@ -193,6 +265,11 @@ app.post('/api/chats/:chatId/messages', async (req, res) => {
        values ($1, 'user', $2)`,
       [chatId, content]
     );
+
+    const chatTitle = chatExists.rows[0]?.title;
+    if (!chatTitle || chatTitle === DEFAULT_CHAT_TITLE) {
+      await query('update chats set title = $1, updated_at = now() where id = $2', [titleFromMessage(content), chatId]);
+    }
 
     const history = await query(
       `select role, content

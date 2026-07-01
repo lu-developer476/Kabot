@@ -9,7 +9,7 @@ Kabot es un chatbot full stack con identidad visual, preparado para correr local
 - **IA:** OpenAI API
 - **Base de datos:** PostgreSQL (Supabase)
 - **Deploy:** Vercel (frontend) + Render (backend)
-- **Versión de Node recomendada:** 20.x (alineada con `.nvmrc` y `engines`)
+- **Versión de Node recomendada:** 20.x (alineada con `engines`)
 
 ## Estructura
 
@@ -56,6 +56,9 @@ OPENAI_API_KEY=sk-...
 FRONTEND_URL=http://localhost:3000,https://mi-frontend.vercel.app
 OPENAI_MODEL=gpt-4.1-mini
 APP_NAME=Kabot
+APP_DESCRIPTION=un asistente reutilizable para equipos y proyectos digitales
+ASSISTANT_TONE=profesional, claro, práctico y cercano
+ASSISTANT_LANGUAGE=español
 SYSTEM_PROMPT=Eres Kabot, un asistente útil, claro, rápido y confiable. Responde en español salvo que el usuario pida otro idioma.
 ```
 
@@ -72,7 +75,10 @@ Si falta cualquiera de esas dos variables, el backend registra un error claro en
 - `FRONTEND_URL` → `http://localhost:3000` (acepta una o varias URLs separadas por comas)
 - `OPENAI_MODEL` → `gpt-4.1-mini`
 - `APP_NAME` → `Kabot`
-- `SYSTEM_PROMPT` → prompt base en español incluido en el proyecto
+- `APP_DESCRIPTION` → describe el caso de uso del asistente para reutilizar Kabot en otros proyectos
+- `ASSISTANT_TONE` → define la personalidad visible del bot
+- `ASSISTANT_LANGUAGE` → idioma principal de respuesta
+- `SYSTEM_PROMPT` → si se define, reemplaza el prompt construido con las variables anteriores
 
 `FRONTEND_URL` también se valida como URL. Si está presente pero es inválida, el backend no arranca.
 
@@ -191,10 +197,21 @@ Notas:
 - El cliente de OpenAI del backend usa un timeout de `25s`, para que una llamada lenta al modelo no deje colgada la request del servidor.
 - Si alguno de esos timeouts se dispara, el usuario ve un error entendible y puede volver a intentar el flujo normal sin recargar toda la app.
 
+## Mejoras de producto incluidas
+
+- La UI carga conversaciones existentes, permite alternar entre chats guardados, crear nuevos chats y eliminar conversaciones desde una barra lateral.
+- El primer mensaje renombra automáticamente la conversación para que el historial sea navegable sin configuración extra.
+- La pantalla inicial incluye prompts sugeridos, indicador de escritura, envío con `Enter`, saltos con `Shift+Enter`, contador de caracteres y botón para copiar respuestas.
+- El backend expone metadatos públicos del asistente para que el frontend muestre nombre, descripción, tono, idioma y límite de caracteres sin hardcodearlos.
+- Kabot es más reutilizable: podés adaptar marca, tono e idioma con `APP_NAME`, `APP_DESCRIPTION`, `ASSISTANT_TONE`, `ASSISTANT_LANGUAGE` o reemplazar todo con `SYSTEM_PROMPT`.
+
 ## Endpoints
 
 - `GET /health`
+- `GET /api/config`
 - `GET /api/chats`
 - `POST /api/chats`
+- `PATCH /api/chats/:chatId`
+- `DELETE /api/chats/:chatId`
 - `GET /api/chats/:chatId/messages`
 - `POST /api/chats/:chatId/messages`
