@@ -2,8 +2,10 @@ const DEFAULT_ENV = {
   FRONTEND_URL: 'http://localhost:3000',
   OPENAI_MODEL: 'gpt-4.1-mini',
   APP_NAME: 'Kabot',
-  SYSTEM_PROMPT:
-    'Eres Kabot, un asistente útil, claro, rápido y confiable. Responde en español salvo que el usuario pida otro idioma.',
+  APP_DESCRIPTION: 'un asistente reutilizable para equipos y proyectos digitales',
+  ASSISTANT_TONE: 'profesional, claro, práctico y cercano',
+  ASSISTANT_LANGUAGE: 'español',
+  SYSTEM_PROMPT: '',
 };
 
 function readEnv(name, fallback) {
@@ -54,11 +56,35 @@ function ensureRequired(name) {
   return value;
 }
 
+function buildDefaultSystemPrompt({ appName, appDescription, assistantTone, assistantLanguage }) {
+  return [
+    `Eres ${appName}, ${appDescription}.`,
+    `Tu tono debe ser ${assistantTone}.`,
+    `Respondé principalmente en ${assistantLanguage}, salvo que el usuario pida otro idioma.`,
+    'Sé concreto, hacé preguntas de aclaración cuando falte contexto y proponé próximos pasos accionables.',
+    'Si el usuario pide ayuda para adaptar este asistente a otro proyecto, explicá qué variables, textos y flujos debería cambiar.',
+  ].join(' ');
+}
+
+const APP_NAME = readEnv('APP_NAME', DEFAULT_ENV.APP_NAME);
+const APP_DESCRIPTION = readEnv('APP_DESCRIPTION', DEFAULT_ENV.APP_DESCRIPTION);
+const ASSISTANT_TONE = readEnv('ASSISTANT_TONE', DEFAULT_ENV.ASSISTANT_TONE);
+const ASSISTANT_LANGUAGE = readEnv('ASSISTANT_LANGUAGE', DEFAULT_ENV.ASSISTANT_LANGUAGE);
+const fallbackSystemPrompt = buildDefaultSystemPrompt({
+  appName: APP_NAME,
+  appDescription: APP_DESCRIPTION,
+  assistantTone: ASSISTANT_TONE,
+  assistantLanguage: ASSISTANT_LANGUAGE,
+});
+
 export const env = {
   DATABASE_URL: ensureRequired('DATABASE_URL'),
   OPENAI_API_KEY: ensureRequired('OPENAI_API_KEY'),
   FRONTEND_URL: ensureFrontendUrls('FRONTEND_URL', readEnv('FRONTEND_URL', DEFAULT_ENV.FRONTEND_URL)),
   OPENAI_MODEL: readEnv('OPENAI_MODEL', DEFAULT_ENV.OPENAI_MODEL),
-  APP_NAME: readEnv('APP_NAME', DEFAULT_ENV.APP_NAME),
-  SYSTEM_PROMPT: readEnv('SYSTEM_PROMPT', DEFAULT_ENV.SYSTEM_PROMPT),
+  APP_NAME,
+  APP_DESCRIPTION,
+  ASSISTANT_TONE,
+  ASSISTANT_LANGUAGE,
+  SYSTEM_PROMPT: readEnv('SYSTEM_PROMPT', fallbackSystemPrompt),
 };

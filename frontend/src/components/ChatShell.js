@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL?.trim() || '';
 const API_URL_ERROR = validateApiUrl(API_URL);
@@ -9,45 +9,33 @@ const CHAT_INIT_TIMEOUT_MS = 10000;
 const CHAT_MESSAGE_TIMEOUT_MS = 30000;
 const CHAT_INIT_TIMEOUT_MESSAGE = 'La creación del chat está tardando demasiado. Probá de nuevo sin recargar la página.';
 const CHAT_MESSAGE_TIMEOUT_MESSAGE = 'La respuesta está tardando demasiado. Cortamos la espera para que no quede “Pensando...” para siempre. Probá de nuevo en unos segundos.';
+const STARTER_PROMPTS = [
+  'Ayudame a adaptar Kabot para una inmobiliaria.',
+  'Diseñá un flujo de soporte profesional para mi SaaS.',
+  '¿Qué debería configurar para reutilizar este bot en otro proyecto?',
+];
 
 function validateApiUrl(value) {
-  if (!value) {
-    return 'Falta la variable de entorno NEXT_PUBLIC_API_URL. Configurala para conectar el frontend con el backend.';
-  }
-
-  try {
-    return new URL(value).toString() ? '' : 'La variable NEXT_PUBLIC_API_URL no es válida.';
-  } catch {
-    return 'La variable de entorno NEXT_PUBLIC_API_URL debe ser una URL válida.';
-  }
+  if (!value) return 'Falta la variable de entorno NEXT_PUBLIC_API_URL. Configurala para conectar el frontend con el backend.';
+  try { return new URL(value).toString() ? '' : 'La variable NEXT_PUBLIC_API_URL no es válida.'; } catch { return 'La variable de entorno NEXT_PUBLIC_API_URL debe ser una URL válida.'; }
 }
 
 async function parseHttpError(response, fallbackMessage) {
   const contentType = response.headers.get('content-type') || '';
-
   if (contentType.includes('application/json')) {
     try {
       const data = await response.json();
-      if (typeof data?.error === 'string' && data.error.trim()) {
-        return data.error.trim();
-      }
-    } catch (error) {
-      console.error('No se pudo interpretar la respuesta de error del backend.', error);
-    }
+      if (typeof data?.error === 'string' && data.error.trim()) return data.error.trim();
+    } catch (error) { console.error('No se pudo interpretar la respuesta de error del backend.', error); }
   }
-
   return fallbackMessage;
 }
 
 async function request(path, options = {}, timeoutMs = CHAT_MESSAGE_TIMEOUT_MS, timeoutMessage = CHAT_MESSAGE_TIMEOUT_MESSAGE) {
-  if (API_URL_ERROR) {
-    throw new Error(API_URL_ERROR);
-  }
-
+  if (API_URL_ERROR) throw new Error(API_URL_ERROR);
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   let response;
-
   try {
     response = await fetch(`${API_URL.replace(/\/$/, '')}${path}`, {
       headers: { 'Content-Type': 'application/json', ...(options.headers || {}) },
@@ -55,441 +43,160 @@ async function request(path, options = {}, timeoutMs = CHAT_MESSAGE_TIMEOUT_MS, 
       signal: controller.signal,
     });
   } catch (error) {
-    if (error?.name === 'AbortError') {
-      throw new Error(timeoutMessage, { cause: error });
-    }
-
+    if (error?.name === 'AbortError') throw new Error(timeoutMessage, { cause: error });
     throw new Error(DEFAULT_ERROR_MESSAGE, { cause: error });
-  } finally {
-    clearTimeout(timeoutId);
-  }
-
+  } finally { clearTimeout(timeoutId); }
   if (!response.ok) {
-    const fallbackMessage =
-      response.status >= 500
-        ? 'El servidor no pudo responder correctamente. Probá de nuevo en un momento.'
-        : 'No pudimos completar la solicitud. Revisá los datos e intentá otra vez.';
-
-    const message = await parseHttpError(response, fallbackMessage);
-    throw new Error(message, { cause: response });
+    const fallbackMessage = response.status >= 500 ? 'El servidor no pudo responder correctamente. Probá de nuevo en un momento.' : 'No pudimos completar la solicitud. Revisá los datos e intentá otra vez.';
+    throw new Error(await parseHttpError(response, fallbackMessage), { cause: response });
   }
-
+  if (response.status === 204) return null;
   return response.json();
 }
 
 export default function ChatShell() {
+  const [config, setConfig] = useState({ appName: 'Kabot', appDescription: 'chatbot reusable para proyectos reales', maxUserMessageLength: 4000 });
+  const [chats, setChats] = useState([]);
   const [chatId, setChatId] = useState(null);
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(API_URL_ERROR);
   const [chatStatus, setChatStatus] = useState(API_URL_ERROR ? 'error' : 'idle');
+  const messagesEndRef = useRef(null);
 
-  const disabled = useMemo(
-    () => loading || !input.trim() || Boolean(API_URL_ERROR) || !chatId || chatStatus !== 'ready',
-    [loading, input, chatId, chatStatus]
-  );
+  const activeChat = useMemo(() => chats.find((chat) => chat.id === chatId), [chats, chatId]);
+  const disabled = loading || !input.trim() || Boolean(API_URL_ERROR) || !chatId || chatStatus !== 'ready';
+  const remainingCharacters = config.maxUserMessageLength - input.length;
 
-  const initializeChat = useCallback(async () => {
-    if (API_URL_ERROR) {
-      setChatStatus('error');
-      setError(API_URL_ERROR);
-      return;
-    }
-
-    try {
-      setLoading(true);
-      setChatStatus('loading');
-      setError('');
-
-      const chat = await request(
-        '/api/chats',
-        { method: 'POST', body: JSON.stringify({}) },
-        CHAT_INIT_TIMEOUT_MS,
-        CHAT_INIT_TIMEOUT_MESSAGE
-      );
-
-      setChatId(chat.chat.id);
-      setChatStatus('ready');
-      setMessages([]);
-    } catch (err) {
-      console.error('Error al crear el chat inicial.', err);
-      setChatId(null);
-      setChatStatus('error');
-      setError(err.message || 'No se pudo iniciar el chat.');
-    } finally {
-      setLoading(false);
-    }
+  const refreshChats = useCallback(async () => {
+    if (API_URL_ERROR) return [];
+    const data = await request('/api/chats', {}, CHAT_INIT_TIMEOUT_MS, CHAT_INIT_TIMEOUT_MESSAGE);
+    setChats(data.chats || []);
+    return data.chats || [];
   }, []);
 
-  useEffect(() => {
-    initializeChat();
-  }, [initializeChat]);
+  const loadMessages = useCallback(async (nextChatId) => {
+    const data = await request(`/api/chats/${nextChatId}/messages`, {}, CHAT_INIT_TIMEOUT_MS, CHAT_INIT_TIMEOUT_MESSAGE);
+    setMessages(data.messages || []);
+  }, []);
 
-  const handleSubmit = async (event) => {
-    event.preventDefault();
-    if (disabled || !chatId) return;
-
-    const prompt = input.trim();
-    const optimisticUser = { role: 'user', content: prompt, id: crypto.randomUUID() };
-
-    setMessages((prev) => [...prev, optimisticUser]);
-    setInput('');
-    setLoading(true);
-    setError('');
-
+  const initializeChat = useCallback(async () => {
+    if (API_URL_ERROR) { setChatStatus('error'); setError(API_URL_ERROR); return; }
     try {
-      const result = await request(
-        `/api/chats/${chatId}/messages`,
-        {
-          method: 'POST',
-          body: JSON.stringify({ content: prompt }),
-        },
-        CHAT_MESSAGE_TIMEOUT_MS,
-        CHAT_MESSAGE_TIMEOUT_MESSAGE
-      );
-
-      setMessages(result.messages);
+      setLoading(true); setChatStatus('loading'); setError('');
+      const [metadata, chatList] = await Promise.all([
+        request('/api/config', {}, CHAT_INIT_TIMEOUT_MS, CHAT_INIT_TIMEOUT_MESSAGE),
+        refreshChats(),
+      ]);
+      setConfig((prev) => ({ ...prev, ...metadata }));
+      if (chatList.length > 0) {
+        setChatId(chatList[0].id);
+        await loadMessages(chatList[0].id);
+      } else {
+        const created = await request('/api/chats', { method: 'POST', body: JSON.stringify({}) }, CHAT_INIT_TIMEOUT_MS, CHAT_INIT_TIMEOUT_MESSAGE);
+        setChatId(created.chat.id); setChats([created.chat]); setMessages([]);
+      }
+      setChatStatus('ready');
     } catch (err) {
-      console.error('Error al enviar un mensaje.', err);
-      setMessages((prev) => prev.filter((message) => message.id !== optimisticUser.id));
-      setInput(prompt);
-      setError(err.message || 'No se pudo enviar el mensaje.');
-    } finally {
-      setLoading(false);
-    }
+      console.error('Error al iniciar Kabot.', err); setChatId(null); setChatStatus('error'); setError(err.message || 'No se pudo iniciar el chat.');
+    } finally { setLoading(false); }
+  }, [loadMessages, refreshChats]);
+
+  useEffect(() => { initializeChat(); }, [initializeChat]);
+  useEffect(() => { messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages, loading]);
+
+  const createConversation = async () => {
+    try {
+      setLoading(true); setError('');
+      const created = await request('/api/chats', { method: 'POST', body: JSON.stringify({}) }, CHAT_INIT_TIMEOUT_MS, CHAT_INIT_TIMEOUT_MESSAGE);
+      setChats((prev) => [created.chat, ...prev]); setChatId(created.chat.id); setMessages([]); setInput(''); setChatStatus('ready');
+    } catch (err) { setError(err.message || 'No se pudo crear el chat.'); } finally { setLoading(false); }
   };
 
-  const resetConversation = async () => {
-    setMessages([]);
-    setInput('');
-    await initializeChat();
+  const selectChat = async (selectedChatId) => {
+    if (selectedChatId === chatId || loading) return;
+    try { setLoading(true); setError(''); setChatId(selectedChatId); await loadMessages(selectedChatId); setChatStatus('ready'); }
+    catch (err) { setError(err.message || 'No se pudo cargar la conversación.'); }
+    finally { setLoading(false); }
+  };
+
+  const deleteActiveChat = async () => {
+    if (!chatId || loading) return;
+    try {
+      setLoading(true); setError(''); await request(`/api/chats/${chatId}`, { method: 'DELETE' }, CHAT_INIT_TIMEOUT_MS, CHAT_INIT_TIMEOUT_MESSAGE);
+      const nextChats = chats.filter((chat) => chat.id !== chatId); setChats(nextChats);
+      if (nextChats[0]) { setChatId(nextChats[0].id); await loadMessages(nextChats[0].id); } else { setChatId(null); setMessages([]); await createConversation(); }
+    } catch (err) { setError(err.message || 'No se pudo eliminar el chat.'); } finally { setLoading(false); }
+  };
+
+  const handleSubmit = async (event) => {
+    event.preventDefault(); if (disabled) return;
+    const prompt = input.trim(); const optimisticUser = { role: 'user', content: prompt, id: crypto.randomUUID() };
+    setMessages((prev) => [...prev, optimisticUser]); setInput(''); setLoading(true); setError('');
+    try {
+      const result = await request(`/api/chats/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content: prompt }) }, CHAT_MESSAGE_TIMEOUT_MS, CHAT_MESSAGE_TIMEOUT_MESSAGE);
+      setMessages(result.messages); await refreshChats();
+    } catch (err) {
+      console.error('Error al enviar un mensaje.', err); setMessages((prev) => prev.filter((message) => message.id !== optimisticUser.id)); setInput(prompt); setError(err.message || 'No se pudo enviar el mensaje.');
+    } finally { setLoading(false); }
+  };
+
+  const handleKeyDown = (event) => {
+    if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); }
   };
 
   const showChatInitializationError = !API_URL_ERROR && chatStatus === 'error';
 
   return (
-    <main style={styles.page}>
-      <section style={styles.hero}>
-        <div style={styles.heroBadge}>KABOT</div>
-        <h1 style={styles.title}>Tu chatbot listo para producción.</h1>
-        <p style={styles.subtitle}>
-          Next.js al frente, Express atrás, OpenAI en el cerebro y PostgreSQL guardando memoria.
-          Bastante mejor que un bot con complejo de tostadora.
-        </p>
+    <main className="page-shell">
+      <section className="hero">
+        <div className="hero-badge">{config.appName}</div>
+        <h1>Un chatbot profesional, configurable y listo para reutilizar.</h1>
+        <p>{config.appDescription}. Cambiá variables de entorno, prompt base y textos de interfaz para convertirlo en el asistente de cualquier producto.</p>
       </section>
 
-      <section style={styles.grid}>
-        <aside style={styles.sidebar}>
-          <img src="/kabot-mascot.jpg" alt="Mascota de Kabot" style={styles.image} />
-          <div style={styles.card}>
-            <h2 style={styles.cardTitle}>Stack</h2>
-            <ul style={styles.list}>
-              <li>React / Next.js</li>
-              <li>Node.js / Express</li>
-              <li>OpenAI API</li>
-              <li>PostgreSQL / Supabase</li>
-              <li>Deploy en Vercel + Render</li>
-            </ul>
+      <section className="workspace">
+        <aside className="sidebar">
+          <img src="/kabot-mascot.jpg" alt="Mascota de Kabot" className="mascot" />
+          <button onClick={createConversation} className="primary-action" disabled={loading || Boolean(API_URL_ERROR)}>+ Nuevo chat</button>
+          <div className="chat-list" aria-label="Conversaciones guardadas">
+            {chats.map((chat) => (
+              <button key={chat.id} onClick={() => selectChat(chat.id)} className={chat.id === chatId ? 'chat-item active' : 'chat-item'} disabled={loading}>
+                <span>{chat.title}</span><small>{new Date(chat.updated_at).toLocaleDateString('es-AR')}</small>
+              </button>
+            ))}
           </div>
         </aside>
 
-        <section style={styles.chatPanel}>
-          <div style={styles.chatHeader}>
-            <div>
-              <h2 style={styles.chatTitle}>Consola de conversación</h2>
-              <p style={styles.chatHint}>Probá el flujo real del proyecto base.</p>
-            </div>
-            <button onClick={resetConversation} style={styles.secondaryButton} disabled={loading || Boolean(API_URL_ERROR)}>
-              Nuevo chat
-            </button>
+        <section className="chat-panel">
+          <header className="chat-header">
+            <div><h2>{activeChat?.title || 'Consola de conversación'}</h2><p>Memoria en PostgreSQL, IA por OpenAI y UI interactiva.</p></div>
+            <button onClick={deleteActiveChat} className="ghost-button" disabled={loading || !chatId}>Eliminar</button>
+          </header>
+
+          {API_URL_ERROR ? <div className="error-box"><strong>Configuración incompleta del frontend</strong><p>{API_URL_ERROR}</p></div> : null}
+          {showChatInitializationError ? <div className="warning-box"><strong>No pudimos iniciar el chat.</strong><p>{error || 'Probá de nuevo sin recargar la página.'}</p><button type="button" onClick={initializeChat} disabled={loading}>Reintentar</button></div> : null}
+
+          <div className="messages-box">
+            {messages.length === 0 ? (
+              <div className="empty-state"><h3>{chatStatus === 'loading' ? 'Preparando el chat...' : 'Listo para conversar'}</h3><p>Elegí un atajo o escribí tu primer mensaje.</p><div className="prompt-grid">{STARTER_PROMPTS.map((prompt) => <button key={prompt} onClick={() => setInput(prompt)} disabled={loading}>{prompt}</button>)}</div></div>
+            ) : messages.map((message, index) => (
+              <article key={message.id || `${message.role}-${index}`} className={`message ${message.role === 'user' ? 'user' : 'assistant'}`}>
+                <span>{message.role === 'user' ? 'Vos' : config.appName}</span><p>{message.content}</p>
+                {message.role === 'assistant' ? <button type="button" onClick={() => navigator.clipboard?.writeText(message.content)} className="copy-button">Copiar</button> : null}
+              </article>
+            ))}
+            {loading && messages.length > 0 ? <div className="typing">{config.appName} está pensando<span>.</span><span>.</span><span>.</span></div> : null}
+            <div ref={messagesEndRef} />
           </div>
 
-          {API_URL_ERROR ? (
-            <div style={styles.configErrorBox}>
-              <p style={styles.configErrorTitle}>Configuración incompleta del frontend</p>
-              <p style={styles.configErrorText}>{API_URL_ERROR}</p>
-            </div>
-          ) : null}
-
-          {showChatInitializationError ? (
-            <div style={styles.requestErrorBox}>
-              <p style={styles.requestErrorTitle}>No pudimos iniciar el chat.</p>
-              <p style={styles.requestErrorText}>{error || 'Probá de nuevo sin recargar la página.'}</p>
-              <button type="button" onClick={() => initializeChat()} style={styles.retryButton} disabled={loading}>
-                {loading ? 'Reintentando...' : 'Reintentar'}
-              </button>
-            </div>
-          ) : null}
-
-          <div style={styles.messagesBox}>
-            {chatStatus === 'loading' && messages.length === 0 ? (
-              <div style={styles.emptyState}>
-                <p style={styles.emptyTitle}>Preparando el chat...</p>
-                <p style={styles.emptyText}>Estamos creando una nueva conversación.</p>
-              </div>
-            ) : messages.length === 0 ? (
-              <div style={styles.emptyState}>
-                <p style={styles.emptyTitle}>Todavía no hay mensajes.</p>
-                <p style={styles.emptyText}>Escribí algo como “Hola Kabot, ¿qué podés hacer?”</p>
-              </div>
-            ) : (
-              messages.map((message, index) => (
-                <article
-                  key={message.id || `${message.role}-${index}`}
-                  style={{
-                    ...styles.message,
-                    ...(message.role === 'user' ? styles.userMessage : styles.assistantMessage),
-                  }}
-                >
-                  <span style={styles.role}>{message.role === 'user' ? 'Vos' : 'Kabot'}</span>
-                  <p style={styles.messageText}>{message.content}</p>
-                </article>
-              ))
-            )}
-          </div>
-
-          <form onSubmit={handleSubmit} style={styles.form}>
-            <textarea
-              value={input}
-              onChange={(event) => setInput(event.target.value)}
-              placeholder="Escribí tu mensaje..."
-              style={styles.textarea}
-              disabled={loading || chatStatus !== 'ready' || Boolean(API_URL_ERROR)}
-            />
-            <div style={styles.formFooter}>
-              <span style={styles.error}>{error}</span>
-              <button type="submit" style={styles.primaryButton} disabled={disabled}>
-                {loading ? 'Pensando...' : 'Enviar'}
-              </button>
-            </div>
+          <form onSubmit={handleSubmit} className="composer">
+            <textarea value={input} onChange={(event) => setInput(event.target.value.slice(0, config.maxUserMessageLength))} onKeyDown={handleKeyDown} placeholder="Escribí tu mensaje... Enter envía, Shift+Enter agrega línea" disabled={loading || chatStatus !== 'ready' || Boolean(API_URL_ERROR)} />
+            <div className="composer-footer"><span className={error ? 'form-error' : 'counter'}>{error || `${remainingCharacters} caracteres disponibles`}</span><button type="submit" disabled={disabled}>{loading ? 'Pensando...' : 'Enviar'}</button></div>
           </form>
         </section>
       </section>
     </main>
   );
 }
-
-const styles = {
-  page: {
-    maxWidth: 1280,
-    margin: '0 auto',
-    padding: '48px 20px 64px',
-  },
-  hero: {
-    marginBottom: 28,
-  },
-  heroBadge: {
-    display: 'inline-flex',
-    padding: '6px 12px',
-    borderRadius: 999,
-    background: 'rgba(110, 168, 254, 0.16)',
-    border: '1px solid rgba(110, 168, 254, 0.35)',
-    color: '#b8d5ff',
-    fontSize: 12,
-    fontWeight: 700,
-    letterSpacing: '0.2em',
-  },
-  title: {
-    margin: '16px 0 12px',
-    fontSize: 'clamp(2.2rem, 4vw, 4rem)',
-    lineHeight: 1.05,
-  },
-  subtitle: {
-    maxWidth: 760,
-    margin: 0,
-    color: '#b8c7df',
-    fontSize: '1.05rem',
-    lineHeight: 1.7,
-  },
-  grid: {
-    display: 'grid',
-    gridTemplateColumns: '340px 1fr',
-    gap: 20,
-  },
-  sidebar: {
-    display: 'grid',
-    gap: 20,
-  },
-  image: {
-    width: '100%',
-    borderRadius: 24,
-    border: '1px solid rgba(171, 208, 255, 0.18)',
-    boxShadow: '0 18px 60px rgba(0,0,0,0.32)',
-  },
-  card: {
-    borderRadius: 24,
-    padding: 20,
-    background: 'rgba(9, 18, 33, 0.88)',
-    border: '1px solid rgba(171, 208, 255, 0.12)',
-  },
-  cardTitle: {
-    marginTop: 0,
-    marginBottom: 12,
-  },
-  list: {
-    margin: 0,
-    paddingLeft: 18,
-    color: '#d4e3fb',
-    lineHeight: 1.8,
-  },
-  chatPanel: {
-    minHeight: 720,
-    display: 'grid',
-    gridTemplateRows: 'auto auto 1fr auto',
-    gap: 16,
-    padding: 20,
-    borderRadius: 28,
-    background: 'rgba(9, 18, 33, 0.82)',
-    border: '1px solid rgba(171, 208, 255, 0.12)',
-    boxShadow: '0 18px 60px rgba(0,0,0,0.24)',
-  },
-  chatHeader: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 16,
-    alignItems: 'center',
-  },
-  chatTitle: {
-    margin: 0,
-    fontSize: '1.35rem',
-  },
-  chatHint: {
-    margin: '6px 0 0',
-    color: '#9fb2cf',
-  },
-  configErrorBox: {
-    padding: '14px 16px',
-    borderRadius: 18,
-    border: '1px solid rgba(255, 107, 107, 0.4)',
-    background: 'rgba(80, 18, 18, 0.55)',
-  },
-  configErrorTitle: {
-    margin: '0 0 6px',
-    color: '#ffd1d1',
-    fontWeight: 700,
-  },
-  configErrorText: {
-    margin: 0,
-    color: '#ffdede',
-    lineHeight: 1.6,
-  },
-  requestErrorBox: {
-    display: 'grid',
-    gap: 10,
-    padding: '14px 16px',
-    borderRadius: 18,
-    border: '1px solid rgba(255, 199, 107, 0.45)',
-    background: 'rgba(72, 45, 12, 0.55)',
-  },
-  requestErrorTitle: {
-    margin: 0,
-    color: '#ffe6b0',
-    fontWeight: 700,
-  },
-  requestErrorText: {
-    margin: 0,
-    color: '#fff0cb',
-    lineHeight: 1.6,
-  },
-  retryButton: {
-    justifySelf: 'start',
-    border: 0,
-    borderRadius: 12,
-    padding: '10px 14px',
-    background: 'rgba(255, 214, 134, 0.95)',
-    color: '#2d1700',
-    fontWeight: 800,
-    cursor: 'pointer',
-  },
-  messagesBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: 14,
-    padding: 8,
-    overflowY: 'auto',
-    minHeight: 420,
-  },
-  emptyState: {
-    margin: 'auto',
-    textAlign: 'center',
-    color: '#9fb2cf',
-  },
-  emptyTitle: {
-    marginBottom: 8,
-    fontSize: '1.05rem',
-    color: '#ecf4ff',
-  },
-  emptyText: {
-    margin: 0,
-  },
-  message: {
-    maxWidth: '85%',
-    padding: '14px 16px',
-    borderRadius: 20,
-    border: '1px solid rgba(171, 208, 255, 0.12)',
-  },
-  userMessage: {
-    marginLeft: 'auto',
-    background: 'linear-gradient(135deg, rgba(18,95,188,0.46), rgba(27,55,94,0.76))',
-  },
-  assistantMessage: {
-    marginRight: 'auto',
-    background: 'rgba(255,255,255,0.04)',
-  },
-  role: {
-    display: 'block',
-    marginBottom: 6,
-    color: '#9fb2cf',
-    fontSize: 12,
-    textTransform: 'uppercase',
-    letterSpacing: '0.1em',
-  },
-  messageText: {
-    margin: 0,
-    lineHeight: 1.65,
-    whiteSpace: 'pre-wrap',
-  },
-  form: {
-    display: 'grid',
-    gap: 12,
-  },
-  textarea: {
-    width: '100%',
-    resize: 'vertical',
-    minHeight: 110,
-    padding: 16,
-    borderRadius: 18,
-    border: '1px solid rgba(171, 208, 255, 0.16)',
-    background: 'rgba(3, 8, 17, 0.95)',
-    color: '#f3f7ff',
-    outline: 'none',
-  },
-  formFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    gap: 16,
-    alignItems: 'center',
-  },
-  error: {
-    color: '#ff8e8e',
-    minHeight: 20,
-  },
-  primaryButton: {
-    border: 0,
-    borderRadius: 14,
-    padding: '12px 18px',
-    background: 'linear-gradient(135deg, #4f94ff, #6fe2ff)',
-    color: '#05111f',
-    fontWeight: 800,
-    cursor: 'pointer',
-  },
-  secondaryButton: {
-    border: '1px solid rgba(171, 208, 255, 0.18)',
-    borderRadius: 14,
-    padding: '10px 16px',
-    background: 'rgba(255,255,255,0.04)',
-    color: '#f3f7ff',
-    cursor: 'pointer',
-  },
-};
