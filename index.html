@@ -1,0 +1,422 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Kabot: chatbot prototipo con experiencia web funcional, modo demo y conexión opcional a backend." />
+  <title>Kabot | Chatbot prototipo</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #06101f;
+      --panel: rgba(8, 18, 34, 0.82);
+      --panel-strong: rgba(5, 12, 24, 0.94);
+      --line: rgba(185, 216, 255, 0.16);
+      --line-strong: rgba(111, 226, 255, 0.55);
+      --text: #f4f8ff;
+      --muted: #a9bad5;
+      --soft: #d8e7ff;
+      --brand: #6fe2ff;
+      --brand-2: #4f94ff;
+      --ok: #8dffcb;
+      --warn: #ffd98d;
+      --danger: #ff9d9d;
+      --shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 16% 4%, rgba(111, 226, 255, 0.23), transparent 28rem),
+        radial-gradient(circle at 84% 8%, rgba(104, 87, 255, 0.2), transparent 30rem),
+        linear-gradient(180deg, #07111f 0%, #09192d 46%, #030814 100%);
+      color: var(--text);
+    }
+
+    body.light {
+      color-scheme: light;
+      --bg: #edf5ff;
+      --panel: rgba(255, 255, 255, 0.82);
+      --panel-strong: rgba(255, 255, 255, 0.96);
+      --line: rgba(29, 76, 132, 0.16);
+      --line-strong: rgba(34, 129, 224, 0.5);
+      --text: #071427;
+      --muted: #4c607d;
+      --soft: #1f375a;
+      --shadow: 0 24px 80px rgba(45, 75, 120, 0.17);
+      background:
+        radial-gradient(circle at 16% 4%, rgba(111, 226, 255, 0.28), transparent 28rem),
+        radial-gradient(circle at 84% 8%, rgba(104, 87, 255, 0.18), transparent 30rem),
+        linear-gradient(180deg, #edf5ff 0%, #f8fbff 54%, #e9f2ff 100%);
+    }
+
+    button, textarea, input { font: inherit; }
+    button { border: 0; }
+    button:not(:disabled) { cursor: pointer; }
+    button:disabled { cursor: not-allowed; opacity: 0.52; }
+    a { color: inherit; }
+
+    .shell { width: min(1240px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 48px; }
+    .topbar {
+      position: sticky;
+      top: 12px;
+      z-index: 10;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 12px 14px;
+      border: 1px solid var(--line);
+      border-radius: 24px;
+      background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(18px);
+    }
+
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 950; letter-spacing: -0.03em; }
+    .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 14px; background: linear-gradient(135deg, var(--brand-2), var(--brand)); color: #03111f; box-shadow: 0 10px 30px rgba(79, 148, 255, 0.32); }
+    .nav-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
+    .pill, .icon-button, .send-button, .quick-prompt, .chip, .secondary-button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.055);
+      color: var(--text);
+      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
+    }
+    .pill, .icon-button, .secondary-button { padding: 10px 13px; }
+    .pill:hover, .icon-button:hover, .secondary-button:hover, .quick-prompt:hover, .chip:hover { transform: translateY(-1px); border-color: var(--line-strong); }
+
+    .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) 390px; gap: 28px; align-items: center; padding: 58px 0 30px; }
+    .eyebrow { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 7px 12px; border: 1px solid rgba(111,226,255,.28); border-radius: 999px; color: var(--brand); background: rgba(111,226,255,.1); font-size: .82rem; font-weight: 850; text-transform: uppercase; letter-spacing: .16em; }
+    h1 { margin: 18px 0 16px; font-size: clamp(2.5rem, 7vw, 5.7rem); line-height: .92; letter-spacing: -0.07em; }
+    .lead { margin: 0; max-width: 760px; color: var(--muted); font-size: clamp(1.05rem, 2vw, 1.26rem); line-height: 1.7; }
+    .hero-actions, .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+    .primary-link, .send-button { background: linear-gradient(135deg, var(--brand-2), var(--brand)); color: #03111f; font-weight: 950; box-shadow: 0 14px 42px rgba(79, 148, 255, 0.28); }
+    .primary-link { display: inline-flex; padding: 13px 18px; border-radius: 999px; text-decoration: none; }
+    .hero-card { border: 1px solid var(--line); border-radius: 32px; background: var(--panel); padding: 18px; box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+    .mascot { width: 100%; aspect-ratio: 1 / .82; object-fit: cover; border-radius: 24px; border: 1px solid var(--line); }
+    .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
+    .metric { padding: 12px; border-radius: 18px; background: rgba(255,255,255,.055); border: 1px solid var(--line); }
+    .metric strong { display: block; font-size: 1.25rem; color: var(--brand); }
+    .metric span { display: block; color: var(--muted); font-size: .8rem; margin-top: 4px; }
+
+    .chat-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: stretch; }
+    .panel { border: 1px solid var(--line); border-radius: 30px; background: var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+    .sidebar { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
+    .sidebar h2, .chat-title h2 { margin: 0; font-size: 1.1rem; }
+    .sidebar p, .chat-title p { margin: 6px 0 0; color: var(--muted); line-height: 1.5; }
+    .mode-card { display: grid; gap: 10px; padding: 14px; border-radius: 20px; background: rgba(255,255,255,.045); border: 1px solid var(--line); }
+    .mode-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: var(--muted); font-size: .92rem; }
+    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 6px rgba(141,255,203,.1); }
+    .status-dot.demo { background: var(--warn); box-shadow: 0 0 0 6px rgba(255,217,141,.1); }
+    .api-form { display: grid; gap: 8px; }
+    .api-form input { width: 100%; padding: 11px 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(0,0,0,.16); color: var(--text); outline: none; }
+    .api-form input:focus { border-color: var(--line-strong); }
+    .chip { padding: 8px 11px; font-size: .88rem; }
+
+    .chat-panel { display: grid; grid-template-rows: auto 1fr auto; min-height: 760px; overflow: hidden; }
+    .chat-header { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 18px; border-bottom: 1px solid var(--line); }
+    .messages { min-height: 430px; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; }
+    .message { max-width: min(780px, 88%); display: grid; gap: 7px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 22px; animation: rise .22s ease both; }
+    .message.user { align-self: flex-end; border-bottom-right-radius: 8px; background: linear-gradient(135deg, rgba(79,148,255,.36), rgba(111,226,255,.12)); }
+    .message.bot { align-self: flex-start; border-bottom-left-radius: 8px; background: rgba(255,255,255,.055); }
+    .message-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
+    .message p { margin: 0; color: var(--soft); white-space: pre-wrap; line-height: 1.65; }
+    .copy { justify-self: start; padding: 6px 9px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--muted); font-size: .8rem; }
+    .typing { width: fit-content; color: var(--brand); padding: 12px 14px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.045); }
+    .typing span { animation: blink 1s infinite; } .typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
+    @keyframes blink { 50% { opacity: .2; } }
+    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+    .composer { padding: 18px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
+    .quick-prompts { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 3px; }
+    .quick-prompt { flex: 0 0 auto; padding: 9px 12px; color: var(--muted); }
+    textarea { width: 100%; min-height: 106px; max-height: 220px; resize: vertical; padding: 15px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel-strong); color: var(--text); outline: none; line-height: 1.5; }
+    textarea:focus { border-color: var(--line-strong); box-shadow: 0 0 0 4px rgba(111,226,255,.08); }
+    .composer-footer { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: var(--muted); }
+    .send-button { padding: 12px 18px; border-radius: 16px; }
+    .notice { color: var(--muted); font-size: .92rem; line-height: 1.5; }
+
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 28px 0 0; }
+    .feature { padding: 18px; border: 1px solid var(--line); border-radius: 24px; background: rgba(255,255,255,.04); }
+    .feature h3 { margin: 0 0 8px; } .feature p { margin: 0; color: var(--muted); line-height: 1.55; }
+
+    @media (max-width: 980px) { .hero, .chat-layout, .features { grid-template-columns: 1fr; } .hero-card { max-width: 520px; } .chat-panel { min-height: 680px; } }
+    @media (max-width: 620px) { .shell { width: min(100% - 18px, 1240px); padding-top: 10px; } .topbar, .chat-header, .composer-footer { align-items: stretch; flex-direction: column; } .nav-actions { justify-content: stretch; } .pill, .icon-button { flex: 1; } h1 { font-size: clamp(2.4rem, 16vw, 4rem); } .message { max-width: 96%; } .metric-grid { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <header class="topbar" aria-label="Navegación principal">
+      <div class="brand"><span class="brand-mark">K</span><span>Kabot</span></div>
+      <nav class="nav-actions">
+        <a class="pill" href="#chat">Probar chat</a>
+        <a class="pill" href="./README.md">Documentación</a>
+        <button class="icon-button" id="themeToggle" type="button">☾ Tema</button>
+      </nav>
+    </header>
+
+    <section class="hero">
+      <div>
+        <span class="eyebrow">Sitio funcional en GitHub Pages</span>
+        <h1>Un bot que se siente natural desde el primer mensaje.</h1>
+        <p class="lead">Kabot ahora abre como una experiencia web real: conversa en modo demo sin configuración, puede conectarse a tu backend cuando lo tengas publicado y guía al usuario con atajos, memoria local, respuestas contextuales y estados claros.</p>
+        <div class="hero-actions">
+          <a class="primary-link" href="#chat">Empezar conversación</a>
+          <a class="secondary-button" href="https://github.com/lu-developer476/Kabot" target="_blank" rel="noreferrer">Ver repositorio</a>
+        </div>
+        <div class="chips" aria-label="Mejoras incluidas">
+          <span class="chip">Modo demo offline</span>
+          <span class="chip">Conexión API opcional</span>
+          <span class="chip">Prompts sugeridos</span>
+          <span class="chip">Memoria local</span>
+          <span class="chip">Copiar respuestas</span>
+        </div>
+      </div>
+      <aside class="hero-card" aria-label="Resumen del producto">
+        <img class="mascot" src="frontend/public/kabot-mascot.jpg" alt="Mascota visual de Kabot" />
+        <div class="metric-grid">
+          <div class="metric"><strong>24/7</strong><span>Demo disponible</span></div>
+          <div class="metric"><strong>0</strong><span>Setup requerido</span></div>
+          <div class="metric"><strong>API</strong><span>Lista para conectar</span></div>
+        </div>
+      </aside>
+    </section>
+
+    <section class="chat-layout" id="chat">
+      <aside class="sidebar panel">
+        <div>
+          <h2>Centro de control</h2>
+          <p>Usá Kabot como demo pública o pegá la URL del backend para hablar con el servicio real.</p>
+        </div>
+        <div class="mode-card">
+          <div class="mode-row"><span>Estado</span><span class="status-dot demo" id="statusDot" aria-hidden="true"></span></div>
+          <strong id="modeLabel">Modo demo inteligente</strong>
+          <span class="notice" id="modeDescription">Respuestas generadas localmente para que GitHub Pages funcione aunque el backend no esté desplegado.</span>
+        </div>
+        <form class="api-form" id="apiForm">
+          <label for="apiUrl">Backend opcional</label>
+          <input id="apiUrl" type="url" placeholder="https://tu-backend.onrender.com" autocomplete="url" />
+          <button class="secondary-button" type="submit">Guardar conexión</button>
+          <button class="secondary-button" id="clearApi" type="button">Volver a demo</button>
+        </form>
+        <div>
+          <h2>Interacción natural</h2>
+          <p>Enter envía, Shift+Enter agrega línea. Las conversaciones quedan guardadas en este navegador.</p>
+        </div>
+        <button class="secondary-button" id="resetChat" type="button">Reiniciar conversación</button>
+      </aside>
+
+      <main class="chat-panel panel" aria-label="Chat con Kabot">
+        <header class="chat-header">
+          <div class="chat-title">
+            <h2>Consola de conversación</h2>
+            <p id="subtitle">Preguntale por producto, soporte, ventas, onboarding o automatizaciones.</p>
+          </div>
+          <button class="secondary-button" id="downloadChat" type="button">Descargar chat</button>
+        </header>
+
+        <div class="messages" id="messages" aria-live="polite"></div>
+
+        <form class="composer" id="chatForm">
+          <div class="quick-prompts" aria-label="Prompts rápidos" id="quickPrompts"></div>
+          <textarea id="prompt" maxlength="1200" placeholder="Escribí tu mensaje... Por ejemplo: ¿cómo adaptarías Kabot para un e-commerce?" required></textarea>
+          <div class="composer-footer">
+            <span id="helper">1200 caracteres disponibles</span>
+            <button class="send-button" id="sendButton" type="submit">Enviar</button>
+          </div>
+        </form>
+      </main>
+    </section>
+
+    <section class="features" aria-label="Mejoras sustanciales">
+      <article class="feature"><h3>Básicas</h3><p>Landing real, responsive, estados visibles, tema claro/oscuro, accesos rápidos y documentación enlazada.</p></article>
+      <article class="feature"><h3>Intermedias</h3><p>Chat persistente en localStorage, exportación de conversación, copiado de respuestas y composer con atajos de teclado.</p></article>
+      <article class="feature"><h3>Complejas</h3><p>Modo demo contextual y conexión opcional a API compatible con el backend Express para usar IA real cuando esté publicada.</p></article>
+    </section>
+  </div>
+
+  <script>
+    const STORAGE_KEY = 'kabot.github.pages.chat.v1';
+    const API_KEY = 'kabot.github.pages.apiUrl';
+    const THEME_KEY = 'kabot.github.pages.theme';
+    const quickPrompts = [
+      'Quiero adaptar Kabot para atención al cliente. ¿Por dónde empiezo?',
+      'Simulá una conversación natural con un lead interesado.',
+      'Dame mejoras para que el bot suene menos robótico.',
+      '¿Cómo conecto este sitio con el backend real?',
+      'Armá un flujo de onboarding para usuarios nuevos.'
+    ];
+
+    const messagesEl = document.querySelector('#messages');
+    const form = document.querySelector('#chatForm');
+    const promptEl = document.querySelector('#prompt');
+    const helperEl = document.querySelector('#helper');
+    const quickEl = document.querySelector('#quickPrompts');
+    const sendButton = document.querySelector('#sendButton');
+    const apiForm = document.querySelector('#apiForm');
+    const apiInput = document.querySelector('#apiUrl');
+    const modeLabel = document.querySelector('#modeLabel');
+    const modeDescription = document.querySelector('#modeDescription');
+    const statusDot = document.querySelector('#statusDot');
+
+    let messages = loadMessages();
+    let apiUrl = localStorage.getItem(API_KEY) || '';
+    apiInput.value = apiUrl;
+
+    if (localStorage.getItem(THEME_KEY) === 'light') document.body.classList.add('light');
+
+    function loadMessages() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+        if (Array.isArray(saved) && saved.length) return saved;
+      } catch (_) {}
+      return [{ role: 'bot', content: '¡Hola! Soy Kabot. Puedo ayudarte a diseñar un asistente más humano, explicar el deploy o simular una conversación de producto. ¿Qué querés construir hoy?', time: new Date().toISOString() }];
+    }
+
+    function saveMessages() { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-80))); }
+    function escapeHtml(value) { return value.replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char])); }
+    function timeLabel(value) { return new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
+
+    function render() {
+      messagesEl.innerHTML = messages.map((message, index) => `
+        <article class="message ${message.role === 'user' ? 'user' : 'bot'}">
+          <div class="message-meta"><span>${message.role === 'user' ? 'Vos' : 'Kabot'}</span><span>${timeLabel(message.time)}</span></div>
+          <p>${escapeHtml(message.content)}</p>
+          ${message.role === 'bot' ? `<button class="copy" type="button" data-copy="${index}">Copiar</button>` : ''}
+        </article>
+      `).join('');
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+      saveMessages();
+    }
+
+    function renderMode() {
+      const connected = Boolean(apiUrl);
+      modeLabel.textContent = connected ? 'API real configurada' : 'Modo demo inteligente';
+      modeDescription.textContent = connected ? `Las consultas intentan usar ${apiUrl}. Si falla, Kabot vuelve al modo demo para no cortar la experiencia.` : 'Respuestas generadas localmente para que GitHub Pages funcione aunque el backend no esté desplegado.';
+      statusDot.classList.toggle('demo', !connected);
+    }
+
+    function addMessage(role, content) {
+      messages.push({ role, content, time: new Date().toISOString() });
+      render();
+    }
+
+    function setTyping(active) {
+      const existing = document.querySelector('#typing');
+      if (existing) existing.remove();
+      if (!active) return;
+      const typing = document.createElement('div');
+      typing.id = 'typing';
+      typing.className = 'typing';
+      typing.innerHTML = 'Kabot está pensando<span>.</span><span>.</span><span>.</span>';
+      messagesEl.appendChild(typing);
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    }
+
+    function localReply(text) {
+      const lower = text.toLowerCase();
+      if (lower.includes('backend') || lower.includes('api') || lower.includes('render')) {
+        return 'Para conectar la API real: publicá el backend Express en Render, copiá su URL pública, pegala en “Backend opcional” y guardá la conexión. Este sitio intentará llamar a /api/chats y /api/chats/:id/messages; si el backend no responde, vuelve al modo demo para mantener la conversación.';
+      }
+      if (lower.includes('natural') || lower.includes('robótico') || lower.includes('humano')) {
+        return 'Para que el bot suene natural conviene: 1) reconocer la intención antes de responder, 2) usar frases breves, 3) pedir un dato por vez, 4) confirmar próximos pasos y 5) adaptar el tono al contexto. Ejemplo: “Entiendo lo que buscás. Te propongo resolverlo en tres pasos y arrancamos por el más urgente”.';
+      }
+      if (lower.includes('lead') || lower.includes('ventas')) {
+        return 'Simulación breve:\n\nLead: “Quiero saber si esto sirve para mi negocio”.\nKabot: “Sí, puedo ayudarte a validarlo rápido. ¿Tu prioridad es captar consultas, responder soporte o calificar oportunidades?”\nLead: “Calificar”.\nKabot: “Perfecto. Entonces pediría rubro, presupuesto aproximado, urgencia y canal preferido. Con eso derivo solo oportunidades con contexto”.';
+      }
+      if (lower.includes('onboarding')) {
+        return 'Flujo de onboarding sugerido: bienvenida clara, pregunta de objetivo, selección de caso de uso, configuración mínima, prueba guiada, resumen de próximos pasos y opción de hablar con una persona. La clave es no pedir todo al inicio: el bot debe descubrir información progresivamente.';
+      }
+      return 'Buena idea. La convertiría en un flujo conversacional así: primero detecto el objetivo, después hago una pregunta aclaratoria, luego propongo una acción concreta y cierro con una opción de siguiente paso. Si querés, puedo transformarlo en un guion completo para tu caso de uso.';
+    }
+
+    async function apiReply(text) {
+      if (!apiUrl) return localReply(text);
+      const base = apiUrl.replace(/\/$/, '');
+      try {
+        let chatId = sessionStorage.getItem('kabot.live.chatId');
+        if (!chatId) {
+          const created = await fetch(`${base}/api/chats`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+          if (!created.ok) throw new Error('No se pudo crear el chat remoto.');
+          const data = await created.json();
+          chatId = data.chat.id;
+          sessionStorage.setItem('kabot.live.chatId', chatId);
+        }
+        const response = await fetch(`${base}/api/chats/${chatId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) });
+        if (!response.ok) throw new Error('El backend no respondió correctamente.');
+        const data = await response.json();
+        const last = [...(data.messages || [])].reverse().find(message => message.role === 'assistant');
+        return last?.content || localReply(text);
+      } catch (error) {
+        console.warn(error);
+        return `${localReply(text)}\n\nNota: intenté usar el backend configurado, pero no respondió. Seguí en modo demo para que la experiencia no se interrumpa.`;
+      }
+    }
+
+    quickPrompts.forEach(prompt => {
+      const button = document.createElement('button');
+      button.type = 'button';
+      button.className = 'quick-prompt';
+      button.textContent = prompt;
+      button.addEventListener('click', () => { promptEl.value = prompt; updateCounter(); promptEl.focus(); });
+      quickEl.appendChild(button);
+    });
+
+    function updateCounter() { helperEl.textContent = `${1200 - promptEl.value.length} caracteres disponibles`; }
+    promptEl.addEventListener('input', updateCounter);
+    promptEl.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); } });
+
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const text = promptEl.value.trim();
+      if (!text) return;
+      addMessage('user', text);
+      promptEl.value = '';
+      updateCounter();
+      sendButton.disabled = true;
+      setTyping(true);
+      const reply = await apiReply(text);
+      await new Promise(resolve => setTimeout(resolve, Math.min(900 + text.length * 8, 1800)));
+      setTyping(false);
+      addMessage('bot', reply);
+      sendButton.disabled = false;
+      promptEl.focus();
+    });
+
+    messagesEl.addEventListener('click', event => {
+      const index = event.target?.dataset?.copy;
+      if (index === undefined) return;
+      navigator.clipboard?.writeText(messages[Number(index)].content);
+      event.target.textContent = 'Copiado';
+      setTimeout(() => { event.target.textContent = 'Copiar'; }, 1200);
+    });
+
+    apiForm.addEventListener('submit', event => {
+      event.preventDefault();
+      apiUrl = apiInput.value.trim();
+      if (apiUrl) localStorage.setItem(API_KEY, apiUrl); else localStorage.removeItem(API_KEY);
+      renderMode();
+    });
+    document.querySelector('#clearApi').addEventListener('click', () => { apiUrl = ''; apiInput.value = ''; localStorage.removeItem(API_KEY); sessionStorage.removeItem('kabot.live.chatId'); renderMode(); });
+    document.querySelector('#resetChat').addEventListener('click', () => { localStorage.removeItem(STORAGE_KEY); messages = loadMessages(); render(); });
+    document.querySelector('#downloadChat').addEventListener('click', () => {
+      const content = messages.map(message => `[${timeLabel(message.time)}] ${message.role === 'user' ? 'Vos' : 'Kabot'}: ${message.content}`).join('\n\n');
+      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = Object.assign(document.createElement('a'), { href: url, download: 'kabot-chat.txt' });
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+    document.querySelector('#themeToggle').addEventListener('click', () => { document.body.classList.toggle('light'); localStorage.setItem(THEME_KEY, document.body.classList.contains('light') ? 'light' : 'dark'); });
+
+    renderMode();
+    render();
+    updateCounter();
+  </script>
+</body>
+</html>
