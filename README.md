@@ -2,6 +2,13 @@
 
 Kabot es un chatbot full stack con identidad visual, preparado para correr localmente y para un deploy simple en Vercel + Render sin cambiar su arquitectura base.
 
+
+## Sitio GitHub Pages
+
+El repo incluye un `index.html` en la raíz para que `https://lu-developer476.github.io/Kabot/` abra una landing funcional en vez de mostrar este README.
+
+La página pública funciona sin build ni backend gracias a un modo demo local, pero también permite pegar la URL del backend publicado para usar la API real cuando esté disponible. Incluye conversación persistente en el navegador, prompts rápidos, exportación del chat, tema claro/oscuro, copiado de respuestas y fallback automático a demo si el backend no responde.
+
 ## Stack
 
 - **Frontend:** React + Next.js 15
