@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import { query, pool } from './db.js';
-import { generateAssistantReply } from './openai.js';
+import { generateAssistantReply, streamAssistantReply } from './openai.js';
 import { env } from './env.js';
 
 const app = express();
@@ -90,6 +90,60 @@ function validateUserMessage(rawContent) {
   }
 
   return { valid: true, content };
+}
+
+
+function sendStreamEvent(res, event, data) {
+  res.write(`event: ${event}\n`);
+  res.write(`data: ${JSON.stringify(data)}\n\n`);
+}
+
+async function prepareAssistantTurn(chatId, content) {
+  const chatExists = await query('select id, title from chats where id = $1 limit 1', [chatId]);
+  if (chatExists.rowCount === 0) {
+    return { error: { status: 404, message: 'El chat no existe.' } };
+  }
+
+  await query(
+    `insert into messages (chat_id, role, content)
+     values ($1, 'user', $2)`,
+    [chatId, content]
+  );
+
+  const chatTitle = chatExists.rows[0]?.title;
+  if (!chatTitle || chatTitle === DEFAULT_CHAT_TITLE) {
+    await query('update chats set title = $1, updated_at = now() where id = $2', [titleFromMessage(content), chatId]);
+  }
+
+  const history = await query(
+    `select role, content
+     from messages
+     where chat_id = $1
+     order by created_at asc`,
+    [chatId]
+  );
+
+  return { promptMessages: buildPromptMessages(history.rows) };
+}
+
+async function persistAssistantReply(chatId, assistantReply) {
+  await query(
+    `insert into messages (chat_id, role, content)
+     values ($1, 'assistant', $2)`,
+    [chatId, assistantReply]
+  );
+
+  await query('update chats set updated_at = now() where id = $1', [chatId]);
+
+  const allMessages = await query(
+    `select id, role, content, created_at
+     from messages
+     where chat_id = $1
+     order by created_at asc`,
+    [chatId]
+  );
+
+  return allMessages.rows;
 }
 
 function sendError(res, statusCode, clientMessage, logContext, error) {
@@ -252,53 +306,16 @@ app.post('/api/chats/:chatId/messages', async (req, res) => {
     return res.status(400).json({ error: validation.error });
   }
 
-  const { content } = validation;
-
   try {
-    const chatExists = await query('select id, title from chats where id = $1 limit 1', [chatId]);
-    if (chatExists.rowCount === 0) {
-      return res.status(404).json({ error: 'El chat no existe.' });
+    const turn = await prepareAssistantTurn(chatId, validation.content);
+    if (turn.error) {
+      return res.status(turn.error.status).json({ error: turn.error.message });
     }
 
-    await query(
-      `insert into messages (chat_id, role, content)
-       values ($1, 'user', $2)`,
-      [chatId, content]
-    );
+    const assistantReply = await generateAssistantReply(turn.promptMessages);
+    const messages = await persistAssistantReply(chatId, assistantReply);
 
-    const chatTitle = chatExists.rows[0]?.title;
-    if (!chatTitle || chatTitle === DEFAULT_CHAT_TITLE) {
-      await query('update chats set title = $1, updated_at = now() where id = $2', [titleFromMessage(content), chatId]);
-    }
-
-    const history = await query(
-      `select role, content
-       from messages
-       where chat_id = $1
-       order by created_at asc`,
-      [chatId]
-    );
-
-    const promptMessages = buildPromptMessages(history.rows);
-    const assistantReply = await generateAssistantReply(promptMessages);
-
-    await query(
-      `insert into messages (chat_id, role, content)
-       values ($1, 'assistant', $2)`,
-      [chatId, assistantReply]
-    );
-
-    await query('update chats set updated_at = now() where id = $1', [chatId]);
-
-    const allMessages = await query(
-      `select id, role, content, created_at
-       from messages
-       where chat_id = $1
-       order by created_at asc`,
-      [chatId]
-    );
-
-    return res.status(201).json({ messages: allMessages.rows });
+    return res.status(201).json({ messages });
   } catch (error) {
     return sendError(
       res,
@@ -307,6 +324,61 @@ app.post('/api/chats/:chatId/messages', async (req, res) => {
       `Error al procesar un mensaje del chat ${chatId}.`,
       error
     );
+  }
+});
+
+app.post('/api/chats/:chatId/messages/stream', async (req, res) => {
+  const { chatId } = req.params;
+  const validation = validateUserMessage(req.body?.content);
+
+  if (!validation.valid) {
+    return res.status(400).json({ error: validation.error });
+  }
+
+  const abortController = new AbortController();
+  const abortStream = () => abortController.abort();
+  req.on('aborted', abortStream);
+  res.on('close', () => {
+    if (!res.writableEnded) {
+      abortStream();
+    }
+  });
+
+  try {
+    const turn = await prepareAssistantTurn(chatId, validation.content);
+    if (turn.error) {
+      return res.status(turn.error.status).json({ error: turn.error.message });
+    }
+
+    res.status(200);
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders?.();
+
+    sendStreamEvent(res, 'ready', { chatId });
+
+    const assistantReply = await streamAssistantReply(turn.promptMessages, {
+      signal: abortController.signal,
+      onToken: (token) => sendStreamEvent(res, 'token', { token }),
+    });
+
+    if (abortController.signal.aborted) {
+      return;
+    }
+
+    const messages = await persistAssistantReply(chatId, assistantReply);
+    sendStreamEvent(res, 'done', { messages });
+    res.end();
+  } catch (error) {
+    logError(`Error al procesar streaming del chat ${chatId}.`, error);
+
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'No se pudo procesar el mensaje en tiempo real.' });
+    }
+
+    sendStreamEvent(res, 'error', { error: 'No se pudo procesar el mensaje en tiempo real.' });
+    res.end();
   }
 });
 

@@ -2,7 +2,7 @@ const DEFAULT_ENV = {
   FRONTEND_URL: 'http://localhost:3000',
   OPENAI_MODEL: 'gpt-4.1-mini',
   APP_NAME: 'Kabot',
-  APP_DESCRIPTION: 'un asistente reutilizable para equipos y proyectos digitales',
+  APP_DESCRIPTION: 'un asistente conversacional en tiempo real para soporte, análisis, creatividad, aprendizaje y automatización',
   ASSISTANT_TONE: 'profesional, claro, práctico y cercano',
   ASSISTANT_LANGUAGE: 'español',
   SYSTEM_PROMPT: '',
@@ -61,6 +61,8 @@ function buildDefaultSystemPrompt({ appName, appDescription, assistantTone, assi
     `Eres ${appName}, ${appDescription}.`,
     `Tu tono debe ser ${assistantTone}.`,
     `Respondé principalmente en ${assistantLanguage}, salvo que el usuario pida otro idioma.`,
+    'Podés ayudar con estrategia, soporte, creatividad, análisis, aprendizaje, planificación, redacción, tecnología y automatización.',
+    'Conversá de forma natural, sostené el contexto reciente y adaptá la profundidad de la respuesta a la necesidad del usuario.',
     'Sé concreto, hacé preguntas de aclaración cuando falte contexto y proponé próximos pasos accionables.',
     'Si el usuario pide ayuda para adaptar este asistente a otro proyecto, explicá qué variables, textos y flujos debería cambiar.',
   ].join(' ');

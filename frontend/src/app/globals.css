@@ -41,6 +41,7 @@ button:disabled { cursor: not-allowed; opacity: 0.55; }
 .message.assistant { margin-right: auto; background: rgba(255,255,255,0.045); }
 .message span { display: block; margin-bottom: 6px; color: #9fb2cf; font-size: 12px; text-transform: uppercase; letter-spacing: 0.1em; }
 .message p { margin: 0; line-height: 1.65; white-space: pre-wrap; }
+.stream-cursor { display: inline-block; margin-left: 3px; color: #6fe2ff; animation: blink 0.9s infinite; }
 .copy-button { margin-top: 12px; padding: 7px 10px; font-size: 0.82rem; }
 .typing { align-self: flex-start; color: #b8d5ff; padding: 12px 14px; border-radius: 999px; background: rgba(255,255,255,0.045); }
 .typing span { animation: blink 1.2s infinite; }
