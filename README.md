@@ -29,10 +29,17 @@ kabot/
 ## Flujo
 
 1. El usuario escribe en el frontend.
-2. El frontend envía el prompt al backend.
+2. El frontend envía el prompt al backend y, en la UI principal, abre un canal de streaming para recibir tokens progresivos.
 3. El backend guarda la conversación en PostgreSQL.
-4. El backend consulta OpenAI.
-5. El backend persiste la respuesta y la devuelve al frontend.
+4. El backend consulta OpenAI con streaming o modo JSON tradicional.
+5. El backend persiste la respuesta final y la devuelve completa al frontend.
+
+## Conversación en tiempo real y ventana de contexto
+
+- La UI principal usa `POST /api/chats/:chatId/messages/stream` para mostrar la respuesta token por token, con cursor en vivo y estado de respuesta progresiva.
+- El endpoint JSON `POST /api/chats/:chatId/messages` se mantiene como fallback compatible para integraciones que no quieran consumir Server-Sent Events.
+- Al terminar el streaming, el backend guarda la respuesta completa en PostgreSQL y envía el historial canónico para sincronizar la interfaz.
+- Si el usuario cierra la conexión, el backend aborta la generación para evitar trabajo innecesario.
 
 ## Ventana de contexto enviada al modelo
 
@@ -63,7 +70,7 @@ OPENAI_API_KEY=sk-...
 FRONTEND_URL=http://localhost:3000,https://mi-frontend.vercel.app
 OPENAI_MODEL=gpt-4.1-mini
 APP_NAME=Kabot
-APP_DESCRIPTION=un asistente reutilizable para equipos y proyectos digitales
+APP_DESCRIPTION=un asistente conversacional en tiempo real para soporte, análisis, creatividad, aprendizaje y automatización
 ASSISTANT_TONE=profesional, claro, práctico y cercano
 ASSISTANT_LANGUAGE=español
 SYSTEM_PROMPT=Eres Kabot, un asistente útil, claro, rápido y confiable. Responde en español salvo que el usuario pida otro idioma.
@@ -82,7 +89,7 @@ Si falta cualquiera de esas dos variables, el backend registra un error claro en
 - `FRONTEND_URL` → `http://localhost:3000` (acepta una o varias URLs separadas por comas)
 - `OPENAI_MODEL` → `gpt-4.1-mini`
 - `APP_NAME` → `Kabot`
-- `APP_DESCRIPTION` → describe el caso de uso del asistente para reutilizar Kabot en otros proyectos
+- `APP_DESCRIPTION` → describe el alcance del asistente; por defecto contempla soporte, análisis, creatividad, aprendizaje y automatización
 - `ASSISTANT_TONE` → define la personalidad visible del bot
 - `ASSISTANT_LANGUAGE` → idioma principal de respuesta
 - `SYSTEM_PROMPT` → si se define, reemplaza el prompt construido con las variables anteriores
@@ -210,7 +217,8 @@ Notas:
 - El primer mensaje renombra automáticamente la conversación para que el historial sea navegable sin configuración extra.
 - La pantalla inicial incluye prompts sugeridos, indicador de escritura, envío con `Enter`, saltos con `Shift+Enter`, contador de caracteres y botón para copiar respuestas.
 - El backend expone metadatos públicos del asistente para que el frontend muestre nombre, descripción, tono, idioma y límite de caracteres sin hardcodearlos.
-- Kabot es más reutilizable: podés adaptar marca, tono e idioma con `APP_NAME`, `APP_DESCRIPTION`, `ASSISTANT_TONE`, `ASSISTANT_LANGUAGE` o reemplazar todo con `SYSTEM_PROMPT`.
+- Kabot es más amplio y reutilizable: el prompt base cubre soporte, estrategia, creatividad, análisis, aprendizaje, redacción, tecnología y automatización, y podés adaptar marca, tono e idioma con `APP_NAME`, `APP_DESCRIPTION`, `ASSISTANT_TONE`, `ASSISTANT_LANGUAGE` o reemplazar todo con `SYSTEM_PROMPT`.
+- La conversación se siente más cercana a ChatGPT: la respuesta aparece en vivo por streaming, se conserva en PostgreSQL y la UI se resincroniza con el historial final al cerrar cada turno.
 
 ## Endpoints
 
@@ -222,3 +230,4 @@ Notas:
 - `DELETE /api/chats/:chatId`
 - `GET /api/chats/:chatId/messages`
 - `POST /api/chats/:chatId/messages`
+- `POST /api/chats/:chatId/messages/stream`

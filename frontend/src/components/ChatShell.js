@@ -10,9 +10,9 @@ const CHAT_MESSAGE_TIMEOUT_MS = 30000;
 const CHAT_INIT_TIMEOUT_MESSAGE = 'La creación del chat está tardando demasiado. Probá de nuevo sin recargar la página.';
 const CHAT_MESSAGE_TIMEOUT_MESSAGE = 'La respuesta está tardando demasiado. Cortamos la espera para que no quede “Pensando...” para siempre. Probá de nuevo en unos segundos.';
 const STARTER_PROMPTS = [
-  'Ayudame a adaptar Kabot para una inmobiliaria.',
-  'Diseñá un flujo de soporte profesional para mi SaaS.',
-  '¿Qué debería configurar para reutilizar este bot en otro proyecto?',
+  'Analizá esta idea de negocio y proponé próximos pasos.',
+  'Actuá como tutor y explicame un tema complejo paso a paso.',
+  'Ayudame a escribir, revisar o mejorar un texto profesional.',
 ];
 
 function validateApiUrl(value) {
@@ -29,6 +29,63 @@ async function parseHttpError(response, fallbackMessage) {
     } catch (error) { console.error('No se pudo interpretar la respuesta de error del backend.', error); }
   }
   return fallbackMessage;
+}
+
+
+async function streamRequest(path, body, handlers = {}) {
+  if (API_URL_ERROR) throw new Error(API_URL_ERROR);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), CHAT_MESSAGE_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${API_URL.replace(/\/$/, '')}${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Accept: 'text/event-stream' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const fallbackMessage = response.status >= 500 ? 'El servidor no pudo responder correctamente. Probá de nuevo en un momento.' : 'No pudimos completar la solicitud. Revisá los datos e intentá otra vez.';
+      throw new Error(await parseHttpError(response, fallbackMessage), { cause: response });
+    }
+
+    if (!response.body) {
+      throw new Error('El navegador no pudo abrir el canal de respuesta en tiempo real.');
+    }
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    const processEvent = (rawEvent) => {
+      const eventName = rawEvent.match(/^event: (.+)$/m)?.[1];
+      const dataLine = rawEvent.match(/^data: (.+)$/m)?.[1];
+      if (!eventName || !dataLine) return;
+
+      const payload = JSON.parse(dataLine);
+      if (eventName === 'token') handlers.onToken?.(payload.token || '');
+      if (eventName === 'done') handlers.onDone?.(payload.messages || []);
+      if (eventName === 'error') throw new Error(payload.error || DEFAULT_ERROR_MESSAGE);
+    };
+
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const events = buffer.split('\n\n');
+      buffer = events.pop() || '';
+      events.forEach(processEvent);
+    }
+
+    if (buffer.trim()) processEvent(buffer);
+  } catch (error) {
+    if (error?.name === 'AbortError') throw new Error(CHAT_MESSAGE_TIMEOUT_MESSAGE, { cause: error });
+    throw error;
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function request(path, options = {}, timeoutMs = CHAT_MESSAGE_TIMEOUT_MS, timeoutMessage = CHAT_MESSAGE_TIMEOUT_MESSAGE) {
@@ -55,7 +112,7 @@ async function request(path, options = {}, timeoutMs = CHAT_MESSAGE_TIMEOUT_MS, 
 }
 
 export default function ChatShell() {
-  const [config, setConfig] = useState({ appName: 'Kabot', appDescription: 'chatbot reusable para proyectos reales', maxUserMessageLength: 4000 });
+  const [config, setConfig] = useState({ appName: 'Kabot', appDescription: 'un asistente conversacional en tiempo real para soporte, análisis, creatividad, aprendizaje y automatización', maxUserMessageLength: 4000 });
   const [chats, setChats] = useState([]);
   const [chatId, setChatId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -134,11 +191,20 @@ export default function ChatShell() {
     event.preventDefault(); if (disabled) return;
     const prompt = input.trim(); const optimisticUser = { role: 'user', content: prompt, id: crypto.randomUUID() };
     setMessages((prev) => [...prev, optimisticUser]); setInput(''); setLoading(true); setError('');
+    const assistantDraftId = crypto.randomUUID();
+    setMessages((prev) => [...prev, { role: 'assistant', content: '', id: assistantDraftId, streaming: true }]);
     try {
-      const result = await request(`/api/chats/${chatId}/messages`, { method: 'POST', body: JSON.stringify({ content: prompt }) }, CHAT_MESSAGE_TIMEOUT_MS, CHAT_MESSAGE_TIMEOUT_MESSAGE);
-      setMessages(result.messages); await refreshChats();
+      await streamRequest(`/api/chats/${chatId}/messages/stream`, { content: prompt }, {
+        onToken: (token) => {
+          setMessages((prev) => prev.map((message) => (message.id === assistantDraftId ? { ...message, content: `${message.content}${token}` } : message)));
+        },
+        onDone: (nextMessages) => {
+          setMessages(nextMessages);
+        },
+      });
+      await refreshChats();
     } catch (err) {
-      console.error('Error al enviar un mensaje.', err); setMessages((prev) => prev.filter((message) => message.id !== optimisticUser.id)); setInput(prompt); setError(err.message || 'No se pudo enviar el mensaje.');
+      console.error('Error al enviar un mensaje.', err); setMessages((prev) => prev.filter((message) => message.id !== optimisticUser.id && message.id !== assistantDraftId)); setInput(prompt); setError(err.message || 'No se pudo enviar el mensaje.');
     } finally { setLoading(false); }
   };
 
@@ -152,8 +218,8 @@ export default function ChatShell() {
     <main className="page-shell">
       <section className="hero">
         <div className="hero-badge">{config.appName}</div>
-        <h1>Un chatbot profesional, configurable y listo para reutilizar.</h1>
-        <p>{config.appDescription}. Cambiá variables de entorno, prompt base y textos de interfaz para convertirlo en el asistente de cualquier producto.</p>
+        <h1>Un asistente conversacional en tiempo real, amplio y listo para producción.</h1>
+        <p>{config.appDescription}. Conversá con respuestas progresivas estilo ChatGPT, memoria persistente y una base configurable para múltiples casos de uso.</p>
       </section>
 
       <section className="workspace">
@@ -171,7 +237,7 @@ export default function ChatShell() {
 
         <section className="chat-panel">
           <header className="chat-header">
-            <div><h2>{activeChat?.title || 'Consola de conversación'}</h2><p>Memoria en PostgreSQL, IA por OpenAI y UI interactiva.</p></div>
+            <div><h2>{activeChat?.title || 'Consola de conversación'}</h2><p>Memoria persistente, streaming de tokens e interacción en tiempo real.</p></div>
             <button onClick={deleteActiveChat} className="ghost-button" disabled={loading || !chatId}>Eliminar</button>
           </header>
 
@@ -183,11 +249,11 @@ export default function ChatShell() {
               <div className="empty-state"><h3>{chatStatus === 'loading' ? 'Preparando el chat...' : 'Listo para conversar'}</h3><p>Elegí un atajo o escribí tu primer mensaje.</p><div className="prompt-grid">{STARTER_PROMPTS.map((prompt) => <button key={prompt} onClick={() => setInput(prompt)} disabled={loading}>{prompt}</button>)}</div></div>
             ) : messages.map((message, index) => (
               <article key={message.id || `${message.role}-${index}`} className={`message ${message.role === 'user' ? 'user' : 'assistant'}`}>
-                <span>{message.role === 'user' ? 'Vos' : config.appName}</span><p>{message.content}</p>
-                {message.role === 'assistant' ? <button type="button" onClick={() => navigator.clipboard?.writeText(message.content)} className="copy-button">Copiar</button> : null}
+                <span>{message.role === 'user' ? 'Vos' : config.appName}</span><p>{message.content}{message.streaming ? <span className="stream-cursor" aria-label="respuesta en curso">▍</span> : null}</p>
+                {message.role === 'assistant' && message.content ? <button type="button" onClick={() => navigator.clipboard?.writeText(message.content)} className="copy-button">Copiar</button> : null}
               </article>
             ))}
-            {loading && messages.length > 0 ? <div className="typing">{config.appName} está pensando<span>.</span><span>.</span><span>.</span></div> : null}
+            {loading && messages.length > 0 ? <div className="typing">Respuesta en vivo<span>.</span><span>.</span><span>.</span></div> : null}
             <div ref={messagesEndRef} />
           </div>
 
