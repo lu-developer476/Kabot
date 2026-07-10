@@ -17,15 +17,35 @@ const THEMES = {
   beige: { label: { es: 'Beige', en: 'Beige' }, icon: '◒', hint: { es: 'Cálido', en: 'Warm' } },
 };
 
-const TIMEZONES = ['America/Argentina/Buenos_Aires', 'America/New_York', 'Europe/Madrid', 'Asia/Tokyo'];
+
+const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires';
+const FALLBACK_TIMEZONES = [DEFAULT_TIMEZONE, 'America/New_York', 'Europe/Madrid', 'Asia/Tokyo', 'UTC'];
+const BROWSER_TIMEZONES = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : FALLBACK_TIMEZONES;
+const TIMEZONES = Array.from(new Set([...BROWSER_TIMEZONES, 'UTC'])).sort();
+const FEATURED_TIMEZONES = [DEFAULT_TIMEZONE, 'America/New_York', 'Europe/Madrid', 'Asia/Tokyo'];
+const TIMEZONE_REGION_LABELS = {
+  Africa: { es: 'África', en: 'Africa' },
+  America: { es: 'América', en: 'Americas' },
+  Antarctica: { es: 'Antártida', en: 'Antarctica' },
+  Arctic: { es: 'Ártico', en: 'Arctic' },
+  Asia: { es: 'Asia', en: 'Asia' },
+  Atlantic: { es: 'Atlántico', en: 'Atlantic' },
+  Australia: { es: 'Australia', en: 'Australia' },
+  Europe: { es: 'Europa', en: 'Europe' },
+  Indian: { es: 'Índico', en: 'Indian' },
+  Pacific: { es: 'Pacífico', en: 'Pacific' },
+  UTC: { es: 'UTC', en: 'UTC' },
+  Other: { es: 'Otras', en: 'Other' },
+};
+
 
 const COPY = {
   es: {
-    heroBadge: 'Nuevo diseño: cabina orbital',
-    heroTitle: 'Kabot ahora se siente como un centro de mando conversacional.',
-    heroText: 'Elegí idioma, tema visual, ciudad horaria y estilo de respuesta sin salir del chat. La interfaz prioriza contexto, acciones rápidas y claridad operativa para conversaciones largas.',
+    heroBadge: 'Nuevo diseño: atlas holográfico',
+    heroTitle: 'Kabot ahora se siente como un atlas vivo de inteligencia conversacional.',
+    heroText: 'Navegá conversaciones, preferencias y todos los husos horarios del planeta como capas de un mapa interactivo. La experiencia está pensada para que Kabot parezca global, claro y siempre listo.',
     whyTitle: 'Por qué este diseño es ideal para Kabot',
-    whyText: 'La “cabina orbital” separa control, conversación y contexto como si el usuario estuviera pilotando una misión: reduce fricción, muestra estado en tiempo real y hace que un asistente amplio parezca ordenado, confiable y premium.',
+    whyText: 'El “atlas holográfico” es ideal para Kabot porque convierte un asistente generalista en una herramienta global: las zonas horarias, la conversación y la personalización conviven como capas visuales, reduciendo búsquedas y reforzando una identidad tecnológica memorable.',
     newChat: '+ Nuevo chat',
     savedChats: 'Conversaciones guardadas',
     searchChats: 'Buscar conversación...',
@@ -52,7 +72,7 @@ const COPY = {
     languageSwitch: 'Selector bilingüe',
     themeHint: 'Cambiá el ambiente visual al instante.',
     worldTime: 'Horario mundial',
-    worldTimeHint: 'Compará husos clave para coordinar equipos.',
+    worldTimeHint: 'Mostramos todas las zonas horarias disponibles en el navegador para coordinar equipos sin salir del chat.',
     responseStyle: 'Estilo de respuesta',
     concise: 'Conciso',
     balanced: 'Balanceado',
@@ -78,14 +98,18 @@ const COPY = {
       'Actuá como tutor y explicame un tema complejo paso a paso.',
       'Ayudame a escribir, revisar o mejorar un texto profesional.',
     ],
-    cities: { 'America/Argentina/Buenos_Aires': 'Buenos Aires', 'America/New_York': 'Nueva York', 'Europe/Madrid': 'Madrid', 'Asia/Tokyo': 'Tokio' },
+    timezoneSearch: 'Buscar zona horaria...',
+    timezoneCount: 'zonas horarias',
+    featuredTimezones: 'Destacadas',
+    allTimezones: 'Todas las zonas horarias',
+    noTimezones: 'No encontramos zonas con ese filtro.',
   },
   en: {
-    heroBadge: 'New design: orbital cockpit',
-    heroTitle: 'Kabot now feels like a conversational command center.',
-    heroText: 'Pick language, visual theme, world clock city, and response style without leaving the chat. The interface prioritizes context, quick actions, and operational clarity for long conversations.',
+    heroBadge: 'New design: holographic atlas',
+    heroTitle: 'Kabot now feels like a living atlas of conversational intelligence.',
+    heroText: 'Navigate conversations, preferences, and every world time zone as layers of an interactive map. The experience makes Kabot feel global, clear, and always ready.',
     whyTitle: 'Why this design is ideal for Kabot',
-    whyText: 'The “orbital cockpit” separates controls, conversation, and context as if the user were piloting a mission: it reduces friction, surfaces real-time state, and makes a broad assistant feel organized, trustworthy, and premium.',
+    whyText: 'The “holographic atlas” is ideal for Kabot because it turns a general assistant into a global tool: time zones, conversation, and personalization coexist as visual layers, reducing lookup friction while creating a memorable tech identity.',
     newChat: '+ New chat',
     savedChats: 'Saved conversations',
     searchChats: 'Search conversation...',
@@ -112,7 +136,7 @@ const COPY = {
     languageSwitch: 'Bilingual switch',
     themeHint: 'Change the visual mood instantly.',
     worldTime: 'World time',
-    worldTimeHint: 'Compare key time zones to coordinate teams.',
+    worldTimeHint: 'We show every time zone available in the browser so teams can coordinate without leaving chat.',
     responseStyle: 'Response style',
     concise: 'Concise',
     balanced: 'Balanced',
@@ -138,9 +162,25 @@ const COPY = {
       'Act as a tutor and explain a complex topic step by step.',
       'Help me write, review, or improve a professional text.',
     ],
-    cities: { 'America/Argentina/Buenos_Aires': 'Buenos Aires', 'America/New_York': 'New York', 'Europe/Madrid': 'Madrid', 'Asia/Tokyo': 'Tokyo' },
+    timezoneSearch: 'Search time zone...',
+    timezoneCount: 'time zones',
+    featuredTimezones: 'Featured',
+    allTimezones: 'All time zones',
+    noTimezones: 'No zones match that filter.',
   },
 };
+
+function getTimezoneLabel(zone, language = 'es') {
+  if (zone === 'UTC') return 'UTC';
+  const city = zone.split('/').pop()?.replace(/_/g, ' ') || zone;
+  const region = zone.split('/')[0] || 'UTC';
+  const translatedRegion = TIMEZONE_REGION_LABELS[region]?.[language] || region;
+  return `${city} · ${translatedRegion}`;
+}
+
+function getTimezoneRegion(zone) {
+  return zone.includes('/') ? zone.split('/')[0] : zone;
+}
 
 function validateApiUrl(value) {
   if (!value) return 'Falta la variable de entorno NEXT_PUBLIC_API_URL. Configurala para conectar el frontend con el backend.';
@@ -193,7 +233,7 @@ export default function ChatShell() {
   const [config, setConfig] = useState({ appName: 'Kabot', appDescription: 'un asistente conversacional en tiempo real para soporte, análisis, creatividad, aprendizaje y automatización', maxUserMessageLength: 4000 });
   const [chats, setChats] = useState([]); const [chatId, setChatId] = useState(null); const [messages, setMessages] = useState([]); const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false); const [error, setError] = useState(API_URL_ERROR); const [chatStatus, setChatStatus] = useState(API_URL_ERROR ? 'error' : 'idle');
-  const [theme, setTheme] = useState('dark'); const [language, setLanguage] = useState('es'); const [timezone, setTimezone] = useState('America/Argentina/Buenos_Aires'); const [responseStyle, setResponseStyle] = useState('balanced'); const [density, setDensity] = useState('comfortable'); const [autoScroll, setAutoScroll] = useState(true); const [mobileView, setMobileView] = useState('chat'); const [chatFilter, setChatFilter] = useState(''); const [clock, setClock] = useState(new Date()); const [copiedId, setCopiedId] = useState('');
+  const [theme, setTheme] = useState('dark'); const [language, setLanguage] = useState('es'); const [timezone, setTimezone] = useState(DEFAULT_TIMEZONE); const [timezoneFilter, setTimezoneFilter] = useState(''); const [responseStyle, setResponseStyle] = useState('balanced'); const [density, setDensity] = useState('comfortable'); const [autoScroll, setAutoScroll] = useState(true); const [mobileView, setMobileView] = useState('chat'); const [chatFilter, setChatFilter] = useState(''); const [clock, setClock] = useState(new Date()); const [copiedId, setCopiedId] = useState('');
   const messagesEndRef = useRef(null);
   const t = COPY[language];
   const activeChat = useMemo(() => chats.find((chat) => chat.id === chatId), [chats, chatId]);
@@ -202,15 +242,25 @@ export default function ChatShell() {
   const disabled = loading || !input.trim() || Boolean(API_URL_ERROR) || !chatId || chatStatus !== 'ready';
   const remainingCharacters = config.maxUserMessageLength - input.length;
   const locale = language === 'es' ? 'es-AR' : 'en-US';
+  const timezoneLabel = useMemo(() => getTimezoneLabel(timezone, language), [timezone, language]);
   const worldTime = useMemo(() => new Intl.DateTimeFormat(locale, { timeZone: timezone, hour: '2-digit', minute: '2-digit', weekday: 'short', day: '2-digit', month: 'short' }).format(clock), [clock, locale, timezone]);
-  const worldClockCards = useMemo(() => TIMEZONES.map((zone) => ({
+  const featuredClockCards = useMemo(() => FEATURED_TIMEZONES.map((zone) => ({
     zone,
-    city: t.cities[zone],
+    city: getTimezoneLabel(zone, language),
     time: new Intl.DateTimeFormat(locale, { timeZone: zone, hour: '2-digit', minute: '2-digit' }).format(clock),
     date: new Intl.DateTimeFormat(locale, { timeZone: zone, weekday: 'short', day: '2-digit', month: 'short' }).format(clock),
-  })), [clock, locale, t]);
+  })), [clock, language, locale]);
+  const filteredTimezones = useMemo(() => {
+    const filter = timezoneFilter.trim().toLowerCase();
+    return TIMEZONES.filter((zone) => `${zone} ${getTimezoneLabel(zone, language)}`.toLowerCase().includes(filter));
+  }, [language, timezoneFilter]);
+  const groupedTimezones = useMemo(() => filteredTimezones.reduce((groups, zone) => {
+    const region = getTimezoneRegion(zone);
+    const key = TIMEZONE_REGION_LABELS[region]?.[language] || region;
+    return { ...groups, [key]: [...(groups[key] || []), zone] };
+  }, {}), [filteredTimezones, language]);
 
-  useEffect(() => { const saved = JSON.parse(localStorage.getItem('kabot.preferences.v2') || '{}'); setTheme(saved.theme || 'dark'); setLanguage(saved.language || 'es'); setTimezone(saved.timezone || 'America/Argentina/Buenos_Aires'); setResponseStyle(saved.responseStyle || 'balanced'); setDensity(saved.density || 'comfortable'); setAutoScroll(saved.autoScroll ?? true); }, []);
+  useEffect(() => { const saved = JSON.parse(localStorage.getItem('kabot.preferences.v2') || '{}'); setTheme(saved.theme || 'dark'); setLanguage(saved.language || 'es'); setTimezone(TIMEZONES.includes(saved.timezone) ? saved.timezone : DEFAULT_TIMEZONE); setResponseStyle(saved.responseStyle || 'balanced'); setDensity(saved.density || 'comfortable'); setAutoScroll(saved.autoScroll ?? true); }, []);
   useEffect(() => { document.documentElement.dataset.theme = theme; localStorage.setItem('kabot.preferences.v2', JSON.stringify({ theme, language, timezone, responseStyle, density, autoScroll })); }, [theme, language, timezone, responseStyle, density, autoScroll]);
   useEffect(() => { const id = setInterval(() => setClock(new Date()), 30000); return () => clearInterval(id); }, []);
   useEffect(() => { if (!chatId) return; setInput(localStorage.getItem(`kabot.draft.${chatId}`) || ''); }, [chatId]);
@@ -225,7 +275,7 @@ export default function ChatShell() {
   const createConversation = async () => { try { setLoading(true); setError(''); const created = await request('/api/chats', { method: 'POST', body: JSON.stringify({}) }, CHAT_INIT_TIMEOUT_MS, CHAT_INIT_TIMEOUT_MESSAGE); setChats((prev) => [created.chat, ...prev]); setChatId(created.chat.id); setMessages([]); setInput(''); setChatStatus('ready'); setMobileView('chat'); } catch (err) { setError(err.message || 'No se pudo crear el chat.'); } finally { setLoading(false); } };
   const selectChat = async (selectedChatId) => { if (selectedChatId === chatId || loading) return; try { setLoading(true); setError(''); setChatId(selectedChatId); await loadMessages(selectedChatId); setChatStatus('ready'); setMobileView('chat'); } catch (err) { setError(err.message || 'No se pudo cargar la conversación.'); } finally { setLoading(false); } };
   const deleteActiveChat = async () => { if (!chatId || loading) return; try { setLoading(true); setError(''); await request(`/api/chats/${chatId}`, { method: 'DELETE' }, CHAT_INIT_TIMEOUT_MS, CHAT_INIT_TIMEOUT_MESSAGE); const nextChats = chats.filter((chat) => chat.id !== chatId); setChats(nextChats); if (nextChats[0]) { setChatId(nextChats[0].id); await loadMessages(nextChats[0].id); } else { setChatId(null); setMessages([]); await createConversation(); } } catch (err) { setError(err.message || 'No se pudo eliminar el chat.'); } finally { setLoading(false); } };
-  const handleSubmit = async (event) => { event.preventDefault(); if (disabled) return; const styleInstruction = language === 'es' ? `\n\nPreferencias del usuario: idioma ${language}, respuesta ${responseStyle}, horario de referencia ${t.cities[timezone]} ${worldTime}.` : `\n\nUser preferences: language ${language}, ${responseStyle} response, reference time ${t.cities[timezone]} ${worldTime}.`; const prompt = `${input.trim()}${styleInstruction}`; const visiblePrompt = input.trim(); const optimisticUser = { role: 'user', content: visiblePrompt, id: crypto.randomUUID() }; setMessages((prev) => [...prev, optimisticUser]); setInput(''); localStorage.removeItem(`kabot.draft.${chatId}`); setLoading(true); setError(''); const assistantDraftId = crypto.randomUUID(); setMessages((prev) => [...prev, { role: 'assistant', content: '', id: assistantDraftId, streaming: true }]); try { await streamRequest(`/api/chats/${chatId}/messages/stream`, { content: prompt }, { onToken: (token) => setMessages((prev) => prev.map((message) => (message.id === assistantDraftId ? { ...message, content: `${message.content}${token}` } : message))), onDone: (nextMessages) => setMessages(nextMessages) }); await refreshChats(); } catch (err) { console.error('Error al enviar un mensaje.', err); setMessages((prev) => prev.filter((message) => message.id !== optimisticUser.id && message.id !== assistantDraftId)); setInput(visiblePrompt); setError(err.message || 'No se pudo enviar el mensaje.'); } finally { setLoading(false); } };
+  const handleSubmit = async (event) => { event.preventDefault(); if (disabled) return; const styleInstruction = language === 'es' ? `\n\nPreferencias del usuario: idioma ${language}, respuesta ${responseStyle}, horario de referencia ${timezoneLabel} ${worldTime}.` : `\n\nUser preferences: language ${language}, ${responseStyle} response, reference time ${timezoneLabel} ${worldTime}.`; const prompt = `${input.trim()}${styleInstruction}`; const visiblePrompt = input.trim(); const optimisticUser = { role: 'user', content: visiblePrompt, id: crypto.randomUUID() }; setMessages((prev) => [...prev, optimisticUser]); setInput(''); localStorage.removeItem(`kabot.draft.${chatId}`); setLoading(true); setError(''); const assistantDraftId = crypto.randomUUID(); setMessages((prev) => [...prev, { role: 'assistant', content: '', id: assistantDraftId, streaming: true }]); try { await streamRequest(`/api/chats/${chatId}/messages/stream`, { content: prompt }, { onToken: (token) => setMessages((prev) => prev.map((message) => (message.id === assistantDraftId ? { ...message, content: `${message.content}${token}` } : message))), onDone: (nextMessages) => setMessages(nextMessages) }); await refreshChats(); } catch (err) { console.error('Error al enviar un mensaje.', err); setMessages((prev) => prev.filter((message) => message.id !== optimisticUser.id && message.id !== assistantDraftId)); setInput(visiblePrompt); setError(err.message || 'No se pudo enviar el mensaje.'); } finally { setLoading(false); } };
   const handleKeyDown = (event) => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); event.currentTarget.form?.requestSubmit(); } };
   const copyMessage = async (message) => { await navigator.clipboard?.writeText(message.content); setCopiedId(message.id || message.content.slice(0, 16)); setTimeout(() => setCopiedId(''), 1200); };
   const showChatInitializationError = !API_URL_ERROR && chatStatus === 'error';
@@ -234,7 +284,7 @@ export default function ChatShell() {
     <section className="hero cockpit-card"><div><div className="hero-badge">{t.heroBadge}</div><h1>{t.heroTitle}</h1><p>{t.heroText}</p></div><aside className="why-card"><strong>{t.whyTitle}</strong><p>{t.whyText}</p></aside></section>
     <nav className="mobile-switch" aria-label="Mobile view"><button type="button" className={mobileView === 'panel' ? 'active' : ''} onClick={() => setMobileView('panel')}>{t.mobilePanel}</button><button type="button" className={mobileView === 'chat' ? 'active' : ''} onClick={() => setMobileView('chat')}>{t.mobileChat}</button></nav>
     <section className="workspace">
-      <aside className={`sidebar cockpit-card ${mobileView === 'panel' ? 'mobile-visible' : ''}`}><img src="/kabot-mascot.jpg" alt="Mascota de Kabot" className="mascot" /><button onClick={createConversation} className="primary-action" disabled={loading || Boolean(API_URL_ERROR)}>{t.newChat}</button><section className="control-panel" aria-label={t.control}><h2>{t.control}</h2><div className="language-card"><span>{t.languageSwitch}</span><div className="segmented-control" role="group" aria-label={t.language}>{['es', 'en'].map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => setLanguage(option)}>{option === 'es' ? 'ES Español' : 'EN English'}</button>)}</div></div><div><span>{t.theme}</span><small>{t.themeHint}</small><div className="theme-grid">{Object.entries(THEMES).map(([key, item]) => <button key={key} type="button" className={theme === key ? 'theme active' : 'theme'} onClick={() => setTheme(key)}><strong>{item.icon} {item.label[language]}</strong><small>{item.hint[language]}</small></button>)}</div></div><label>{t.worldTime}<select value={timezone} onChange={(e) => setTimezone(e.target.value)}>{Object.entries(t.cities).map(([zone, label]) => <option key={zone} value={zone}>{label}</option>)}</select></label><div className="world-clock"><strong>{t.cities[timezone]}</strong><span>{worldTime}</span></div><div className="world-clock-grid" aria-label={t.worldTimeHint}>{worldClockCards.map((item) => <button key={item.zone} type="button" className={timezone === item.zone ? 'active' : ''} onClick={() => setTimezone(item.zone)}><span>{item.city}</span><strong>{item.time}</strong><small>{item.date}</small></button>)}</div><label>{t.responseStyle}<select value={responseStyle} onChange={(e) => setResponseStyle(e.target.value)}><option value="concise">{t.concise}</option><option value="balanced">{t.balanced}</option><option value="detailed">{t.detailed}</option></select></label><label>{t.density}<select value={density} onChange={(e) => setDensity(e.target.value)}><option value="comfortable">{t.comfortable}</option><option value="compact">{t.compact}</option></select></label><button type="button" className="theme" onClick={() => setAutoScroll((value) => !value)}>{t.autoScroll}: {autoScroll ? t.on : t.off}</button></section><section className="conversation-pulse"><h2>{t.statsTitle}</h2><div><strong>{messageStats.total}</strong><span>{t.messagesStat}</span></div><div><strong>{messageStats.user}</strong><span>{t.userStat}</span></div><div><strong>{messageStats.assistant}</strong><span>{t.assistantStat}</span></div><small>{t.lastUpdate}: {activeChat ? new Date(activeChat.updated_at).toLocaleString(language === 'es' ? 'es-AR' : 'en-US') : '—'}</small></section><input className="chat-search" value={chatFilter} onChange={(event) => setChatFilter(event.target.value)} placeholder={t.searchChats} aria-label={t.searchChats} /><div className="chat-list" aria-label={t.savedChats}>{filteredChats.map((chat) => <button key={chat.id} onClick={() => selectChat(chat.id)} className={chat.id === chatId ? 'chat-item active' : 'chat-item'} disabled={loading}><span>{chat.title}</span><small>{new Date(chat.updated_at).toLocaleDateString(language === 'es' ? 'es-AR' : 'en-US')}</small></button>)}</div></aside>
+      <aside className={`sidebar cockpit-card ${mobileView === 'panel' ? 'mobile-visible' : ''}`}><img src="/kabot-mascot.jpg" alt="Mascota de Kabot" className="mascot" /><button onClick={createConversation} className="primary-action" disabled={loading || Boolean(API_URL_ERROR)}>{t.newChat}</button><section className="control-panel" aria-label={t.control}><h2>{t.control}</h2><div className="language-card"><span>{t.languageSwitch}</span><div className="segmented-control" role="group" aria-label={t.language}>{['es', 'en'].map((option) => <button key={option} type="button" className={language === option ? 'active' : ''} onClick={() => setLanguage(option)}>{option === 'es' ? 'ES Español' : 'EN English'}</button>)}</div></div><div><span>{t.theme}</span><small>{t.themeHint}</small><div className="theme-grid">{Object.entries(THEMES).map(([key, item]) => <button key={key} type="button" className={theme === key ? 'theme active' : 'theme'} onClick={() => setTheme(key)}><strong>{item.icon} {item.label[language]}</strong><small>{item.hint[language]}</small></button>)}</div></div><label className="timezone-picker">{t.worldTime}<select value={timezone} onChange={(e) => setTimezone(e.target.value)}>{TIMEZONES.map((zone) => <option key={zone} value={zone}>{getTimezoneLabel(zone, language)} — {zone}</option>)}</select><small>{TIMEZONES.length} {t.timezoneCount}. {t.worldTimeHint}</small></label><div className="world-clock"><strong>{timezoneLabel}</strong><span>{worldTime}</span></div><div className="world-clock-grid" aria-label={t.featuredTimezones}>{featuredClockCards.map((item) => <button key={item.zone} type="button" className={timezone === item.zone ? 'active' : ''} onClick={() => setTimezone(item.zone)}><span>{item.city}</span><strong>{item.time}</strong><small>{item.date}</small></button>)}</div><section className="timezone-atlas" aria-label={t.allTimezones}><div><strong>{t.allTimezones}</strong><small>{filteredTimezones.length} / {TIMEZONES.length} {t.timezoneCount}</small></div><input value={timezoneFilter} onChange={(event) => setTimezoneFilter(event.target.value)} placeholder={t.timezoneSearch} aria-label={t.timezoneSearch} />{filteredTimezones.length ? <div className="timezone-region-list">{Object.entries(groupedTimezones).map(([region, zones]) => <details key={region} open={timezoneFilter.trim().length > 0 || region === (TIMEZONE_REGION_LABELS.America[language])}><summary>{region}<span>{zones.length}</span></summary><div>{zones.map((zone) => <button key={zone} type="button" className={timezone === zone ? 'active' : ''} onClick={() => setTimezone(zone)}><span>{getTimezoneLabel(zone, language)}</span><small>{zone}</small></button>)}</div></details>)}</div> : <p>{t.noTimezones}</p>}</section><label>{t.responseStyle}<select value={responseStyle} onChange={(e) => setResponseStyle(e.target.value)}><option value="concise">{t.concise}</option><option value="balanced">{t.balanced}</option><option value="detailed">{t.detailed}</option></select></label><label>{t.density}<select value={density} onChange={(e) => setDensity(e.target.value)}><option value="comfortable">{t.comfortable}</option><option value="compact">{t.compact}</option></select></label><button type="button" className="theme" onClick={() => setAutoScroll((value) => !value)}>{t.autoScroll}: {autoScroll ? t.on : t.off}</button></section><section className="conversation-pulse"><h2>{t.statsTitle}</h2><div><strong>{messageStats.total}</strong><span>{t.messagesStat}</span></div><div><strong>{messageStats.user}</strong><span>{t.userStat}</span></div><div><strong>{messageStats.assistant}</strong><span>{t.assistantStat}</span></div><small>{t.lastUpdate}: {activeChat ? new Date(activeChat.updated_at).toLocaleString(language === 'es' ? 'es-AR' : 'en-US') : '—'}</small></section><input className="chat-search" value={chatFilter} onChange={(event) => setChatFilter(event.target.value)} placeholder={t.searchChats} aria-label={t.searchChats} /><div className="chat-list" aria-label={t.savedChats}>{filteredChats.map((chat) => <button key={chat.id} onClick={() => selectChat(chat.id)} className={chat.id === chatId ? 'chat-item active' : 'chat-item'} disabled={loading}><span>{chat.title}</span><small>{new Date(chat.updated_at).toLocaleDateString(language === 'es' ? 'es-AR' : 'en-US')}</small></button>)}</div></aside>
       <section className={`chat-panel cockpit-card ${mobileView === 'chat' ? 'mobile-visible' : ''}`}><header className="chat-header"><div><h2>{activeChat?.title || 'Kabot'}</h2><p>{t.headerSubtitle}</p></div><div className="header-actions"><button type="button" onClick={() => setAutoScroll(true)} className="ghost-button">{t.jumpLatest}</button><button onClick={deleteActiveChat} className="ghost-button" disabled={loading || !chatId}>{t.delete}</button></div></header>{API_URL_ERROR ? <div className="error-box"><strong>{t.apiConfigTitle}</strong><p>{API_URL_ERROR}</p></div> : null}{showChatInitializationError ? <div className="warning-box"><strong>{t.initErrorTitle}</strong><p>{error || 'Probá de nuevo sin recargar la página.'}</p><button type="button" onClick={initializeChat} disabled={loading}>{t.retry}</button></div> : null}<div className="messages-box">{messages.length === 0 ? <div className="empty-state"><h3>{chatStatus === 'loading' ? t.loadingTitle : t.readyTitle}</h3><p>{t.emptyText}</p><div className="prompt-grid">{t.prompts.map((prompt) => <button key={prompt} onClick={() => setInput(prompt)} disabled={loading}>{prompt}</button>)}</div></div> : messages.map((message, index) => <article key={message.id || `${message.role}-${index}`} className={`message ${message.role === 'user' ? 'user' : 'assistant'}`}><span>{message.role === 'user' ? t.you : config.appName}</span><p>{message.content}{message.streaming ? <span className="stream-cursor" aria-label="respuesta en curso">▍</span> : null}</p>{message.role === 'assistant' && message.content ? <button type="button" onClick={() => copyMessage(message)} className="copy-button">{copiedId === (message.id || message.content.slice(0, 16)) ? t.copied : t.copy}</button> : null}</article>)}{loading && messages.length > 0 ? <div className="typing">{t.typing}<span>.</span><span>.</span><span>.</span></div> : null}<div ref={messagesEndRef} /></div><form onSubmit={handleSubmit} className="composer"><div className="composer-tools"><strong>{t.shortcutsTitle}</strong><button type="button" onClick={() => setInput('')} disabled={!input}>{t.clearDraft}</button><span>{input ? t.draftSaved : ''}</span></div><textarea value={input} onFocus={() => setAutoScroll(false)} onChange={(event) => setInput(event.target.value.slice(0, config.maxUserMessageLength))} onKeyDown={handleKeyDown} placeholder={t.placeholder} disabled={loading || chatStatus !== 'ready' || Boolean(API_URL_ERROR)} /><div className="composer-footer"><span className={error ? 'form-error' : 'counter'}>{error || `${remainingCharacters} ${t.chars}`}</span><button type="submit" disabled={disabled}>{loading ? t.thinking : t.send}</button></div></form></section>
     </section>
   </main>;
