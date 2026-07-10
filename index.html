@@ -3,420 +3,151 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Kabot: chatbot prototipo con experiencia web funcional, modo demo y conexión opcional a backend." />
-  <title>Kabot | Chatbot prototipo</title>
+  <meta name="description" content="Kabot: asistente conversacional tipo ChatGPT con personalización, modo demo, horario mundial y backend opcional." />
+  <title>Kabot | Chat conversacional</title>
   <style>
     :root {
       color-scheme: dark;
-      --bg: #06101f;
-      --panel: rgba(8, 18, 34, 0.82);
-      --panel-strong: rgba(5, 12, 24, 0.94);
-      --line: rgba(185, 216, 255, 0.16);
-      --line-strong: rgba(111, 226, 255, 0.55);
-      --text: #f4f8ff;
-      --muted: #a9bad5;
-      --soft: #d8e7ff;
-      --brand: #6fe2ff;
-      --brand-2: #4f94ff;
-      --ok: #8dffcb;
-      --warn: #ffd98d;
-      --danger: #ff9d9d;
-      --shadow: 0 24px 80px rgba(0, 0, 0, 0.32);
+      --bg0: #050812; --bg1: #081426; --panel: rgba(9, 17, 32, .82); --panel-strong: rgba(3, 7, 18, .94);
+      --line: rgba(190, 215, 255, .16); --line-strong: rgba(111, 226, 255, .58); --text: #f7fbff; --muted: #aab9d2; --soft: #dbe8ff;
+      --brand: #6fe2ff; --brand-2: #4f94ff; --accent: #9d8cff; --ok: #8dffcb; --warn: #ffd98d; --danger: #ff9d9d;
+      --shadow: 0 24px 80px rgba(0,0,0,.34); --radius: 26px;
       font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
-
-    * { box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      margin: 0;
-      min-height: 100vh;
-      background:
-        radial-gradient(circle at 16% 4%, rgba(111, 226, 255, 0.23), transparent 28rem),
-        radial-gradient(circle at 84% 8%, rgba(104, 87, 255, 0.2), transparent 30rem),
-        linear-gradient(180deg, #07111f 0%, #09192d 46%, #030814 100%);
-      color: var(--text);
-    }
-
-    body.light {
-      color-scheme: light;
-      --bg: #edf5ff;
-      --panel: rgba(255, 255, 255, 0.82);
-      --panel-strong: rgba(255, 255, 255, 0.96);
-      --line: rgba(29, 76, 132, 0.16);
-      --line-strong: rgba(34, 129, 224, 0.5);
-      --text: #071427;
-      --muted: #4c607d;
-      --soft: #1f375a;
-      --shadow: 0 24px 80px rgba(45, 75, 120, 0.17);
-      background:
-        radial-gradient(circle at 16% 4%, rgba(111, 226, 255, 0.28), transparent 28rem),
-        radial-gradient(circle at 84% 8%, rgba(104, 87, 255, 0.18), transparent 30rem),
-        linear-gradient(180deg, #edf5ff 0%, #f8fbff 54%, #e9f2ff 100%);
-    }
-
-    button, textarea, input { font: inherit; }
-    button { border: 0; }
-    button:not(:disabled) { cursor: pointer; }
-    button:disabled { cursor: not-allowed; opacity: 0.52; }
-    a { color: inherit; }
-
-    .shell { width: min(1240px, calc(100% - 28px)); margin: 0 auto; padding: 24px 0 48px; }
-    .topbar {
-      position: sticky;
-      top: 12px;
-      z-index: 10;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 16px;
-      padding: 12px 14px;
-      border: 1px solid var(--line);
-      border-radius: 24px;
-      background: color-mix(in srgb, var(--panel-strong) 88%, transparent);
-      box-shadow: var(--shadow);
-      backdrop-filter: blur(18px);
-    }
-
-    .brand { display: flex; align-items: center; gap: 10px; font-weight: 950; letter-spacing: -0.03em; }
-    .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 14px; background: linear-gradient(135deg, var(--brand-2), var(--brand)); color: #03111f; box-shadow: 0 10px 30px rgba(79, 148, 255, 0.32); }
-    .nav-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
-    .pill, .icon-button, .send-button, .quick-prompt, .chip, .secondary-button {
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.055);
-      color: var(--text);
-      transition: transform 160ms ease, border-color 160ms ease, background 160ms ease;
-    }
-    .pill, .icon-button, .secondary-button { padding: 10px 13px; }
-    .pill:hover, .icon-button:hover, .secondary-button:hover, .quick-prompt:hover, .chip:hover { transform: translateY(-1px); border-color: var(--line-strong); }
-
-    .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) 390px; gap: 28px; align-items: center; padding: 58px 0 30px; }
-    .eyebrow { display: inline-flex; align-items: center; gap: 8px; width: fit-content; padding: 7px 12px; border: 1px solid rgba(111,226,255,.28); border-radius: 999px; color: var(--brand); background: rgba(111,226,255,.1); font-size: .82rem; font-weight: 850; text-transform: uppercase; letter-spacing: .16em; }
-    h1 { margin: 18px 0 16px; font-size: clamp(2.5rem, 7vw, 5.7rem); line-height: .92; letter-spacing: -0.07em; }
-    .lead { margin: 0; max-width: 760px; color: var(--muted); font-size: clamp(1.05rem, 2vw, 1.26rem); line-height: 1.7; }
-    .hero-actions, .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
-    .primary-link, .send-button { background: linear-gradient(135deg, var(--brand-2), var(--brand)); color: #03111f; font-weight: 950; box-shadow: 0 14px 42px rgba(79, 148, 255, 0.28); }
-    .primary-link { display: inline-flex; padding: 13px 18px; border-radius: 999px; text-decoration: none; }
-    .hero-card { border: 1px solid var(--line); border-radius: 32px; background: var(--panel); padding: 18px; box-shadow: var(--shadow); backdrop-filter: blur(18px); }
-    .mascot { width: 100%; aspect-ratio: 1 / .82; object-fit: cover; border-radius: 24px; border: 1px solid var(--line); }
-    .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
-    .metric { padding: 12px; border-radius: 18px; background: rgba(255,255,255,.055); border: 1px solid var(--line); }
-    .metric strong { display: block; font-size: 1.25rem; color: var(--brand); }
-    .metric span { display: block; color: var(--muted); font-size: .8rem; margin-top: 4px; }
-
-    .chat-layout { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 18px; align-items: stretch; }
-    .panel { border: 1px solid var(--line); border-radius: 30px; background: var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
-    .sidebar { padding: 18px; display: flex; flex-direction: column; gap: 16px; }
-    .sidebar h2, .chat-title h2 { margin: 0; font-size: 1.1rem; }
-    .sidebar p, .chat-title p { margin: 6px 0 0; color: var(--muted); line-height: 1.5; }
-    .mode-card { display: grid; gap: 10px; padding: 14px; border-radius: 20px; background: rgba(255,255,255,.045); border: 1px solid var(--line); }
-    .mode-row { display: flex; justify-content: space-between; gap: 10px; align-items: center; color: var(--muted); font-size: .92rem; }
-    .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 6px rgba(141,255,203,.1); }
-    .status-dot.demo { background: var(--warn); box-shadow: 0 0 0 6px rgba(255,217,141,.1); }
-    .api-form { display: grid; gap: 8px; }
-    .api-form input { width: 100%; padding: 11px 12px; border-radius: 14px; border: 1px solid var(--line); background: rgba(0,0,0,.16); color: var(--text); outline: none; }
-    .api-form input:focus { border-color: var(--line-strong); }
-    .chip { padding: 8px 11px; font-size: .88rem; }
-
-    .chat-panel { display: grid; grid-template-rows: auto 1fr auto; min-height: 760px; overflow: hidden; }
-    .chat-header { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 18px; border-bottom: 1px solid var(--line); }
-    .messages { min-height: 430px; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; }
-    .message { max-width: min(780px, 88%); display: grid; gap: 7px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 22px; animation: rise .22s ease both; }
-    .message.user { align-self: flex-end; border-bottom-right-radius: 8px; background: linear-gradient(135deg, rgba(79,148,255,.36), rgba(111,226,255,.12)); }
-    .message.bot { align-self: flex-start; border-bottom-left-radius: 8px; background: rgba(255,255,255,.055); }
-    .message-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; }
-    .message p { margin: 0; color: var(--soft); white-space: pre-wrap; line-height: 1.65; }
-    .copy { justify-self: start; padding: 6px 9px; border-radius: 10px; border: 1px solid var(--line); background: rgba(255,255,255,.04); color: var(--muted); font-size: .8rem; }
-    .typing { width: fit-content; color: var(--brand); padding: 12px 14px; border: 1px solid var(--line); border-radius: 999px; background: rgba(255,255,255,.045); }
-    .typing span { animation: blink 1s infinite; } .typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s}
-    @keyframes blink { 50% { opacity: .2; } }
-    @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
-
-    .composer { padding: 18px; border-top: 1px solid var(--line); display: grid; gap: 12px; }
-    .quick-prompts { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 3px; }
-    .quick-prompt { flex: 0 0 auto; padding: 9px 12px; color: var(--muted); }
-    textarea { width: 100%; min-height: 106px; max-height: 220px; resize: vertical; padding: 15px; border-radius: 20px; border: 1px solid var(--line); background: var(--panel-strong); color: var(--text); outline: none; line-height: 1.5; }
-    textarea:focus { border-color: var(--line-strong); box-shadow: 0 0 0 4px rgba(111,226,255,.08); }
-    .composer-footer { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: var(--muted); }
-    .send-button { padding: 12px 18px; border-radius: 16px; }
-    .notice { color: var(--muted); font-size: .92rem; line-height: 1.5; }
-
-    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 28px 0 0; }
-    .feature { padding: 18px; border: 1px solid var(--line); border-radius: 24px; background: rgba(255,255,255,.04); }
-    .feature h3 { margin: 0 0 8px; } .feature p { margin: 0; color: var(--muted); line-height: 1.55; }
-
-    @media (max-width: 980px) { .hero, .chat-layout, .features { grid-template-columns: 1fr; } .hero-card { max-width: 520px; } .chat-panel { min-height: 680px; } }
-    @media (max-width: 620px) { .shell { width: min(100% - 18px, 1240px); padding-top: 10px; } .topbar, .chat-header, .composer-footer { align-items: stretch; flex-direction: column; } .nav-actions { justify-content: stretch; } .pill, .icon-button { flex: 1; } h1 { font-size: clamp(2.4rem, 16vw, 4rem); } .message { max-width: 96%; } .metric-grid { grid-template-columns: 1fr; } }
+    body[data-theme="blue"] { --bg0: #031229; --bg1: #062d54; --panel: rgba(7, 32, 62, .84); --panel-strong: rgba(3, 18, 38, .96); --brand: #79e6ff; --brand-2: #2d73ff; --accent: #4dd7ff; }
+    body[data-theme="light"] { color-scheme: light; --bg0: #edf5ff; --bg1: #ffffff; --panel: rgba(255,255,255,.84); --panel-strong: rgba(255,255,255,.98); --line: rgba(29,76,132,.16); --line-strong: rgba(34,129,224,.5); --text: #071427; --muted: #50617b; --soft: #1f375a; --shadow: 0 24px 80px rgba(45,75,120,.17); }
+    body[data-theme="beige"] { color-scheme: light; --bg0: #f5ead8; --bg1: #fff9ef; --panel: rgba(255,248,236,.86); --panel-strong: rgba(255,252,246,.98); --line: rgba(132,89,29,.18); --line-strong: rgba(201,134,49,.48); --text: #23190d; --muted: #755f43; --soft: #49351c; --brand: #d89538; --brand-2: #a86422; --accent: #7e9f55; --shadow: 0 24px 80px rgba(112,82,45,.16); }
+    * { box-sizing: border-box; } html { scroll-behavior: smooth; }
+    body { margin: 0; min-height: 100vh; color: var(--text); background: linear-gradient(90deg, color-mix(in srgb, var(--line) 38%, transparent) 1px, transparent 1px), linear-gradient(0deg, color-mix(in srgb, var(--line) 28%, transparent) 1px, transparent 1px), radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--brand) 22%, transparent), transparent 30rem), radial-gradient(circle at 84% 4%, color-mix(in srgb, var(--accent) 20%, transparent), transparent 32rem), linear-gradient(135deg, var(--bg0), var(--bg1)); background-size: 72px 72px, 72px 72px, auto, auto, auto; }
+    button, textarea, input, select { font: inherit; } button { border: 0; } button:not(:disabled) { cursor: pointer; } button:disabled { cursor: not-allowed; opacity: .52; } a { color: inherit; }
+    .app { width: min(1480px, calc(100% - 28px)); margin: 0 auto; padding: 18px 0 34px; }
+    .topbar { position: sticky; top: 10px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 22px; background: color-mix(in srgb, var(--panel-strong) 88%, transparent); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 950; letter-spacing: -.03em; } .brand-mark { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 14px; background: linear-gradient(135deg, var(--brand-2), var(--brand)); color: #03111f; box-shadow: 0 10px 30px color-mix(in srgb, var(--brand-2) 34%, transparent); }
+    .nav-actions, .segmented, .theme-grid, .chips, .hero-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+    .pill, .ghost, .primary, .quick, .chip, .theme-option, .copy, .send { border: 1px solid var(--line); border-radius: 999px; color: var(--text); background: color-mix(in srgb, var(--panel) 70%, transparent); transition: transform .16s ease, border-color .16s ease, background .16s ease; }
+    .pill, .ghost, .theme-option { padding: 9px 12px; } .pill:hover, .ghost:hover, .quick:hover, .theme-option:hover, .copy:hover { transform: translateY(-1px); border-color: var(--line-strong); }
+    .primary, .send { background: linear-gradient(135deg, var(--brand-2), var(--brand)); color: #03111f; font-weight: 950; box-shadow: 0 14px 42px color-mix(in srgb, var(--brand-2) 28%, transparent); }
+    .primary { display: inline-flex; padding: 13px 18px; text-decoration: none; } .send { padding: 12px 18px; border-radius: 16px; }
+    .hero { display: grid; grid-template-columns: minmax(0, 1.1fr) 380px; gap: 22px; align-items: stretch; padding: 44px 0 22px; position: relative; overflow: hidden; }
+    .hero-main, .hero-card, .sidebar, .chat-panel, .feature { border: 1px solid var(--line); background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 8%, transparent), transparent 34%), var(--panel); box-shadow: var(--shadow); backdrop-filter: blur(18px); }
+    .hero-main { border-radius: 34px; padding: clamp(22px, 4vw, 44px); } .hero-card { border-radius: 34px; padding: 18px; }
+    .eyebrow { display: inline-flex; width: fit-content; padding: 7px 12px; border: 1px solid color-mix(in srgb, var(--brand) 32%, transparent); border-radius: 999px; color: var(--brand); background: color-mix(in srgb, var(--brand) 10%, transparent); font-size: .82rem; font-weight: 850; text-transform: uppercase; letter-spacing: .16em; }
+    h1 { margin: 18px 0 16px; font-size: clamp(2.45rem, 7vw, 5.4rem); line-height: .92; letter-spacing: -.07em; } .lead { margin: 0; max-width: 780px; color: var(--muted); font-size: clamp(1.04rem, 2vw, 1.24rem); line-height: 1.7; }
+    .chip { padding: 8px 11px; font-size: .88rem; } .mascot { width: 100%; aspect-ratio: 1 / .78; object-fit: cover; border-radius: 24px; border: 1px solid var(--line); filter: saturate(1.08) contrast(1.04); }
+    .metric-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; } .metric { padding: 12px; border-radius: 18px; background: color-mix(in srgb, var(--panel-strong) 55%, transparent); border: 1px solid var(--line); } .metric strong { display: block; font-size: 1.2rem; color: var(--brand); } .metric span { display: block; color: var(--muted); font-size: .8rem; margin-top: 4px; }
+    .workspace { display: grid; grid-template-columns: 340px minmax(0, 1fr); gap: 18px; align-items: stretch; }
+    .sidebar { border-radius: 30px; padding: 16px; display: flex; flex-direction: column; gap: 14px; min-height: 820px; }
+    .chat-panel { border-radius: 30px; display: grid; grid-template-rows: auto 1fr auto; min-height: 820px; overflow: hidden; }
+    .section-card { display: grid; gap: 10px; padding: 14px; border-radius: 20px; background: color-mix(in srgb, var(--panel-strong) 48%, transparent); border: 1px solid var(--line); } .section-card h2, .chat-title h2 { margin: 0; font-size: 1.05rem; } .section-card p, .chat-title p { margin: 4px 0 0; color: var(--muted); line-height: 1.5; }
+    .segmented { padding: 4px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--panel-strong) 52%, transparent); } .segmented button { flex: 1; min-width: 86px; padding: 8px 10px; border-radius: 999px; color: var(--muted); background: transparent; } .segmented button.active { color: #03111f; background: linear-gradient(135deg, var(--brand-2), var(--brand)); font-weight: 900; }
+    .theme-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); } .theme-option { border-radius: 16px; display: grid; gap: 3px; text-align: left; } .theme-option.active { border-color: var(--line-strong); background: color-mix(in srgb, var(--brand) 15%, transparent); } .theme-option small { color: var(--muted); }
+    .status-row, .world-clock, .timezone-atlas > div:first-child { display: flex; justify-content: space-between; gap: 12px; align-items: center; } .status-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--ok); box-shadow: 0 0 0 6px color-mix(in srgb, var(--ok) 12%, transparent); } .status-dot.demo { background: var(--warn); box-shadow: 0 0 0 6px color-mix(in srgb, var(--warn) 15%, transparent); }
+    .api-form { display: grid; gap: 8px; } .api-form input, .timezone-atlas input, .timezone-atlas select, textarea { width: 100%; border: 1px solid var(--line); background: var(--panel-strong); color: var(--text); outline: none; } .api-form input, .timezone-atlas input, .timezone-atlas select { padding: 11px 12px; border-radius: 14px; } .api-form input:focus, .timezone-atlas input:focus, .timezone-atlas select:focus, textarea:focus { border-color: var(--line-strong); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 10%, transparent); }
+    .timezone-atlas { display: grid; gap: 10px; max-height: 360px; min-height: 230px; overflow: hidden; } .world-clock { padding: 11px 12px; border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--panel) 62%, transparent); } .timezone-atlas small, .timezone-atlas p, .world-clock span { color: var(--muted); margin: 0; }
+    .timezone-region-list { display: grid; gap: 8px; overflow: auto; padding-right: 3px; } .timezone-region-list details { border: 1px solid var(--line); border-radius: 16px; background: color-mix(in srgb, var(--panel-strong) 55%, transparent); overflow: hidden; } .timezone-region-list summary { display: flex; justify-content: space-between; gap: 10px; padding: 10px 12px; color: var(--brand); font-weight: 950; cursor: pointer; } .timezone-region-list summary span { color: var(--muted); } .timezone-region-list details > div { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px; padding: 0 10px 10px; } .timezone-region-list button { display: grid; gap: 2px; text-align: left; border: 1px solid var(--line); border-radius: 12px; padding: 8px 9px; background: color-mix(in srgb, var(--panel) 62%, transparent); color: var(--text); } .timezone-region-list button.active { border-color: var(--line-strong); background: color-mix(in srgb, var(--brand) 15%, transparent); } .timezone-region-list button span, .timezone-region-list button small { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+    .chat-header { display: flex; justify-content: space-between; gap: 14px; align-items: center; padding: 18px; border-bottom: 1px solid var(--line); } .header-actions { display: flex; gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
+    .messages { min-height: 430px; padding: 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; scroll-behavior: smooth; } .message { max-width: min(820px, 88%); display: grid; gap: 7px; padding: 14px 16px; border: 1px solid var(--line); border-radius: 22px; animation: rise .22s ease both; } .message.user { align-self: flex-end; border-bottom-right-radius: 8px; background: linear-gradient(135deg, color-mix(in srgb, var(--brand-2) 42%, transparent), color-mix(in srgb, var(--brand) 14%, transparent)); } .message.bot { align-self: flex-start; border-bottom-left-radius: 8px; background: color-mix(in srgb, var(--panel-strong) 46%, transparent); } .message-meta { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); font-size: .78rem; font-weight: 800; text-transform: uppercase; letter-spacing: .09em; } .message p { margin: 0; color: var(--soft); white-space: pre-wrap; line-height: 1.65; } .copy { justify-self: start; padding: 6px 9px; border-radius: 10px; color: var(--muted); font-size: .8rem; }
+    .typing { width: fit-content; color: var(--brand); padding: 12px 14px; border: 1px solid var(--line); border-radius: 999px; background: color-mix(in srgb, var(--panel-strong) 54%, transparent); } .typing span { animation: blink 1s infinite; } .typing span:nth-child(2){animation-delay:.15s}.typing span:nth-child(3){animation-delay:.3s} @keyframes blink { 50% { opacity: .2; } } @keyframes rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    .composer { padding: 18px; border-top: 1px solid var(--line); display: grid; gap: 12px; } .quick-prompts { display: flex; gap: 9px; overflow-x: auto; padding-bottom: 3px; } .quick { flex: 0 0 auto; padding: 9px 12px; color: var(--muted); } textarea { min-height: 118px; max-height: 240px; resize: vertical; padding: 15px; border-radius: 20px; line-height: 1.5; } .composer-footer { display: flex; justify-content: space-between; gap: 12px; align-items: center; color: var(--muted); }
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; padding: 18px 0 0; } .feature { padding: 18px; border-radius: 24px; } .feature h3 { margin: 0 0 8px; } .feature p { margin: 0; color: var(--muted); line-height: 1.55; }
+    .mobile-switch { display: none; }
+    @media (max-width: 1080px) { .hero, .workspace, .features { grid-template-columns: 1fr; } .hero-card { max-width: 560px; } .sidebar, .chat-panel { min-height: auto; } }
+    @media (max-width: 700px) { body { background-size: 42px 42px, 42px 42px, auto, auto, auto; } .app { width: min(100% - 16px, 1480px); padding-top: 8px; } .topbar, .chat-header, .composer-footer { align-items: stretch; flex-direction: column; } .nav-actions, .header-actions { justify-content: stretch; } .pill, .ghost, .header-actions .ghost { flex: 1; text-align: center; } .hero { display: none; } .mobile-switch { display: flex; position: sticky; top: 76px; z-index: 12; gap: 8px; padding: 8px 0; } .mobile-switch button { flex: 1; padding: 11px; border-radius: 999px; color: var(--muted); background: var(--panel); border: 1px solid var(--line); } .mobile-switch button.active { color: #03111f; background: linear-gradient(135deg, var(--brand-2), var(--brand)); font-weight: 950; } .sidebar, .chat-panel { display: none; } .sidebar.mobile-visible { display: flex; } .chat-panel.mobile-visible { display: grid; } .sidebar, .chat-panel { border-radius: 24px; } .theme-grid, .timezone-region-list details > div, .metric-grid { grid-template-columns: 1fr; } .message { max-width: 96%; } textarea { min-height: 100px; } }
   </style>
 </head>
-<body>
-  <div class="shell">
+<body data-theme="dark">
+  <div class="app">
     <header class="topbar" aria-label="Navegación principal">
       <div class="brand"><span class="brand-mark">K</span><span>Kabot</span></div>
-      <nav class="nav-actions">
-        <a class="pill" href="#chat">Probar chat</a>
-        <a class="pill" href="./README.md">Documentación</a>
-        <button class="icon-button" id="themeToggle" type="button">☾ Tema</button>
-      </nav>
+      <nav class="nav-actions"><a class="pill" href="#chat" data-i18n="tryChat">Probar chat</a><a class="pill" href="./README.md" data-i18n="docs">Documentación</a></nav>
     </header>
 
     <section class="hero">
-      <div>
-        <span class="eyebrow">Sitio funcional en GitHub Pages</span>
-        <h1>Un bot que se siente natural desde el primer mensaje.</h1>
-        <p class="lead">Kabot ahora abre como una experiencia web real: conversa en modo demo sin configuración, puede conectarse a tu backend cuando lo tengas publicado y guía al usuario con atajos, memoria local, respuestas contextuales y estados claros.</p>
-        <div class="hero-actions">
-          <a class="primary-link" href="#chat">Empezar conversación</a>
-          <a class="secondary-button" href="https://github.com/lu-developer476/Kabot" target="_blank" rel="noreferrer">Ver repositorio</a>
-        </div>
-        <div class="chips" aria-label="Mejoras incluidas">
-          <span class="chip">Modo demo offline</span>
-          <span class="chip">Conexión API opcional</span>
-          <span class="chip">Prompts sugeridos</span>
-          <span class="chip">Memoria local</span>
-          <span class="chip">Copiar respuestas</span>
-        </div>
-      </div>
-      <aside class="hero-card" aria-label="Resumen del producto">
-        <img class="mascot" src="frontend/public/kabot-mascot.jpg" alt="Mascota visual de Kabot" />
-        <div class="metric-grid">
-          <div class="metric"><strong>24/7</strong><span>Demo disponible</span></div>
-          <div class="metric"><strong>0</strong><span>Setup requerido</span></div>
-          <div class="metric"><strong>API</strong><span>Lista para conectar</span></div>
-        </div>
-      </aside>
+      <div class="hero-main"><span class="eyebrow" data-i18n="heroBadge">Experiencia tipo ChatGPT</span><h1 data-i18n="heroTitle">Un bot conversacional, personalizable y global.</h1><p class="lead" data-i18n="heroText">Kabot ahora funciona como una consola de chat moderna: elegí tema oscuro, azul, claro o beige; cambiá entre español e inglés; coordiná horarios mundiales y conversá en modo demo o con backend real.</p><div class="hero-actions"><a class="primary" href="#chat" data-i18n="start">Empezar conversación</a><a class="ghost" href="https://github.com/lu-developer476/Kabot" target="_blank" rel="noreferrer" data-i18n="repo">Ver repositorio</a></div><div class="chips" aria-label="Mejoras incluidas"><span class="chip">ChatGPT-like</span><span class="chip" data-i18n="chipThemes">4 temas</span><span class="chip" data-i18n="chipLang">Bilingüe</span><span class="chip" data-i18n="chipWorld">Horario mundial</span><span class="chip" data-i18n="chipMemory">Memoria local</span></div></div>
+      <aside class="hero-card" aria-label="Resumen del producto"><img class="mascot" src="frontend/public/kabot-mascot.jpg" alt="Mascota visual de Kabot" /><div class="metric-grid"><div class="metric"><strong>4</strong><span data-i18n="metricThemes">Temas visuales</span></div><div class="metric"><strong>ES/EN</strong><span data-i18n="metricLang">Idioma</span></div><div class="metric"><strong>Global</strong><span data-i18n="metricTime">Husos horarios</span></div></div></aside>
     </section>
 
-    <section class="chat-layout" id="chat">
-      <aside class="sidebar panel">
-        <div>
-          <h2>Centro de control</h2>
-          <p>Usá Kabot como demo pública o pegá la URL del backend para hablar con el servicio real.</p>
-        </div>
-        <div class="mode-card">
-          <div class="mode-row"><span>Estado</span><span class="status-dot demo" id="statusDot" aria-hidden="true"></span></div>
-          <strong id="modeLabel">Modo demo inteligente</strong>
-          <span class="notice" id="modeDescription">Respuestas generadas localmente para que GitHub Pages funcione aunque el backend no esté desplegado.</span>
-        </div>
-        <form class="api-form" id="apiForm">
-          <label for="apiUrl">Backend opcional</label>
-          <input id="apiUrl" type="url" placeholder="https://tu-backend.onrender.com" autocomplete="url" />
-          <button class="secondary-button" type="submit">Guardar conexión</button>
-          <button class="secondary-button" id="clearApi" type="button">Volver a demo</button>
-        </form>
-        <div>
-          <h2>Interacción natural</h2>
-          <p>Enter envía, Shift+Enter agrega línea. Las conversaciones quedan guardadas en este navegador.</p>
-        </div>
-        <button class="secondary-button" id="resetChat" type="button">Reiniciar conversación</button>
+    <nav class="mobile-switch" aria-label="Vista móvil"><button id="showPanel" type="button" data-i18n="panel">Panel</button><button id="showChat" class="active" type="button" data-i18n="chat">Chat</button></nav>
+
+    <section class="workspace" id="chat">
+      <aside class="sidebar" id="sidebar">
+        <section class="section-card"><h2 data-i18n="control">Centro de control</h2><p data-i18n="controlText">Personalizá Kabot sin salir de la conversación.</p><div class="status-row"><span data-i18n="status">Estado</span><span class="status-dot demo" id="statusDot" aria-hidden="true"></span></div><strong id="modeLabel">Modo demo inteligente</strong><small id="modeDescription">Respuestas locales si el backend no está publicado.</small></section>
+        <section class="section-card"><h2 data-i18n="language">Idioma</h2><div class="segmented" role="group" aria-label="Idioma"><button id="langEs" type="button">ES Español</button><button id="langEn" type="button">EN English</button></div></section>
+        <section class="section-card"><h2 data-i18n="theme">Tema visual</h2><div class="theme-grid" id="themeGrid"></div></section>
+        <section class="section-card timezone-atlas" aria-label="Atlas de husos horarios"><div><strong data-i18n="worldTime">Horario mundial</strong><small id="timezoneCount">Cargando...</small></div><select id="timezoneSelect" aria-label="Zona horaria"></select><div class="world-clock"><strong id="timezoneLabel">Buenos Aires · América</strong><span id="worldTime">--:--</span></div><input id="timezoneSearch" type="search" placeholder="Buscar zona horaria..." aria-label="Buscar zona horaria" /><div class="timezone-region-list" id="timezoneRegionList"></div></section>
+        <form class="api-form section-card" id="apiForm"><label for="apiUrl" data-i18n="backend">Backend opcional</label><input id="apiUrl" type="url" placeholder="https://tu-backend.onrender.com" autocomplete="url" /><button class="ghost" type="submit" data-i18n="saveConnection">Guardar conexión</button><button class="ghost" id="clearApi" type="button" data-i18n="backDemo">Volver a demo</button></form>
+        <button class="ghost" id="resetChat" type="button" data-i18n="reset">Reiniciar conversación</button>
       </aside>
 
-      <main class="chat-panel panel" aria-label="Chat con Kabot">
-        <header class="chat-header">
-          <div class="chat-title">
-            <h2>Consola de conversación</h2>
-            <p id="subtitle">Preguntale por producto, soporte, ventas, onboarding o automatizaciones.</p>
-          </div>
-          <button class="secondary-button" id="downloadChat" type="button">Descargar chat</button>
-        </header>
-
+      <main class="chat-panel mobile-visible" id="chatPanel" aria-label="Chat con Kabot">
+        <header class="chat-header"><div class="chat-title"><h2>Kabot</h2><p id="subtitle" data-i18n="subtitle">Preguntale como a ChatGPT: producto, soporte, ventas, aprendizaje, código o automatizaciones.</p></div><div class="header-actions"><button class="ghost" id="downloadChat" type="button" data-i18n="download">Descargar chat</button><button class="ghost" id="jumpLatest" type="button" data-i18n="latest">Ir al final</button></div></header>
         <div class="messages" id="messages" aria-live="polite"></div>
-
-        <form class="composer" id="chatForm">
-          <div class="quick-prompts" aria-label="Prompts rápidos" id="quickPrompts"></div>
-          <textarea id="prompt" maxlength="1200" placeholder="Escribí tu mensaje... Por ejemplo: ¿cómo adaptarías Kabot para un e-commerce?" required></textarea>
-          <div class="composer-footer">
-            <span id="helper">1200 caracteres disponibles</span>
-            <button class="send-button" id="sendButton" type="submit">Enviar</button>
-          </div>
-        </form>
+        <form class="composer" id="chatForm"><div class="quick-prompts" aria-label="Prompts rápidos" id="quickPrompts"></div><textarea id="prompt" maxlength="2000" placeholder="Escribí tu mensaje..." required></textarea><div class="composer-footer"><span id="helper">2000 caracteres disponibles</span><button class="send" id="sendButton" type="submit" data-i18n="send">Enviar</button></div></form>
       </main>
     </section>
 
-    <section class="features" aria-label="Mejoras sustanciales">
-      <article class="feature"><h3>Básicas</h3><p>Landing real, responsive, estados visibles, tema claro/oscuro, accesos rápidos y documentación enlazada.</p></article>
-      <article class="feature"><h3>Intermedias</h3><p>Chat persistente en localStorage, exportación de conversación, copiado de respuestas y composer con atajos de teclado.</p></article>
-      <article class="feature"><h3>Complejas</h3><p>Modo demo contextual y conexión opcional a API compatible con el backend Express para usar IA real cuando esté publicada.</p></article>
-    </section>
+    <section class="features" aria-label="Mejoras sustanciales"><article class="feature"><h3 data-i18n="feature1Title">Personalización</h3><p data-i18n="feature1Text">Tema oscuro, azul, claro o beige; idioma ES/EN; preferencias persistidas en este navegador.</p></article><article class="feature"><h3 data-i18n="feature2Title">Chat tipo ChatGPT</h3><p data-i18n="feature2Text">Interfaz centrada en mensajes, prompts rápidos, copiar respuestas, exportar conversación y atajos de teclado.</p></article><article class="feature"><h3 data-i18n="feature3Title">Horario mundial</h3><p data-i18n="feature3Text">Atlas de zonas horarias con búsqueda, agrupación regional y reloj de referencia para coordinar equipos.</p></article></section>
   </div>
 
   <script>
-    const STORAGE_KEY = 'kabot.github.pages.chat.v1';
+    const STORAGE_KEY = 'kabot.github.pages.chat.v2';
     const API_KEY = 'kabot.github.pages.apiUrl';
-    const THEME_KEY = 'kabot.github.pages.theme';
-    const quickPrompts = [
-      'Quiero adaptar Kabot para atención al cliente. ¿Por dónde empiezo?',
-      'Simulá una conversación natural con un lead interesado.',
-      'Dame mejoras para que el bot suene menos robótico.',
-      '¿Cómo conecto este sitio con el backend real?',
-      'Armá un flujo de onboarding para usuarios nuevos.'
-    ];
-
-    const messagesEl = document.querySelector('#messages');
-    const form = document.querySelector('#chatForm');
-    const promptEl = document.querySelector('#prompt');
-    const helperEl = document.querySelector('#helper');
-    const quickEl = document.querySelector('#quickPrompts');
-    const sendButton = document.querySelector('#sendButton');
-    const apiForm = document.querySelector('#apiForm');
-    const apiInput = document.querySelector('#apiUrl');
-    const modeLabel = document.querySelector('#modeLabel');
-    const modeDescription = document.querySelector('#modeDescription');
-    const statusDot = document.querySelector('#statusDot');
-
+    const PREF_KEY = 'kabot.github.pages.preferences.v3';
+    const DEFAULT_TIMEZONE = 'America/Argentina/Buenos_Aires';
+    const FALLBACK_TIMEZONES = [DEFAULT_TIMEZONE, 'America/New_York', 'Europe/Madrid', 'Asia/Tokyo', 'UTC'];
+    const BROWSER_TIMEZONES = typeof Intl.supportedValuesOf === 'function' ? Intl.supportedValuesOf('timeZone') : FALLBACK_TIMEZONES;
+    const TIMEZONES = Array.from(new Set([...BROWSER_TIMEZONES, 'UTC'])).sort();
+    const TIMEZONE_REGION_LABELS = { Africa: { es: 'África', en: 'Africa' }, America: { es: 'América', en: 'Americas' }, Antarctica: { es: 'Antártida', en: 'Antarctica' }, Arctic: { es: 'Ártico', en: 'Arctic' }, Asia: { es: 'Asia', en: 'Asia' }, Atlantic: { es: 'Atlántico', en: 'Atlantic' }, Australia: { es: 'Australia', en: 'Australia' }, Europe: { es: 'Europa', en: 'Europe' }, Indian: { es: 'Índico', en: 'Indian' }, Pacific: { es: 'Pacífico', en: 'Pacific' }, UTC: { es: 'UTC', en: 'UTC' } };
+    const THEMES = { dark: { es: ['Oscuro', 'Contraste premium'], en: ['Dark', 'Premium contrast'], icon: '●' }, blue: { es: ['Azul', 'Cabina tecnológica'], en: ['Blue', 'Tech cockpit'], icon: '◆' }, light: { es: ['Claro', 'Limpio y brillante'], en: ['Light', 'Clean and bright'], icon: '○' }, beige: { es: ['Beige', 'Cálido y suave'], en: ['Beige', 'Warm and soft'], icon: '◒' } };
+    const COPY = {
+      es: { tryChat: 'Probar chat', docs: 'Documentación', heroBadge: 'Experiencia tipo ChatGPT', heroTitle: 'Un bot conversacional, personalizable y global.', heroText: 'Kabot ahora funciona como una consola de chat moderna: elegí tema oscuro, azul, claro o beige; cambiá entre español e inglés; coordiná horarios mundiales y conversá en modo demo o con backend real.', start: 'Empezar conversación', repo: 'Ver repositorio', chipThemes: '4 temas', chipLang: 'Bilingüe', chipWorld: 'Horario mundial', chipMemory: 'Memoria local', metricThemes: 'Temas visuales', metricLang: 'Idioma', metricTime: 'Husos horarios', panel: 'Panel', chat: 'Chat', control: 'Centro de control', controlText: 'Personalizá Kabot sin salir de la conversación.', status: 'Estado', modeDemo: 'Modo demo inteligente', modeApi: 'API real configurada', modeDemoText: 'Respuestas locales si el backend no está publicado.', modeApiText: 'Intento usar el backend configurado y vuelvo a demo si falla.', language: 'Idioma', theme: 'Tema visual', worldTime: 'Horario mundial', backend: 'Backend opcional', saveConnection: 'Guardar conexión', backDemo: 'Volver a demo', reset: 'Reiniciar conversación', subtitle: 'Preguntale como a ChatGPT: producto, soporte, ventas, aprendizaje, código o automatizaciones.', download: 'Descargar chat', latest: 'Ir al final', send: 'Enviar', thinking: 'Pensando', chars: 'caracteres disponibles', copied: 'Copiado', copy: 'Copiar', searchTimezone: 'Buscar zona horaria...', timezoneCount: 'zonas horarias', noTimezones: 'No encontramos zonas con ese filtro.', welcome: '¡Hola! Soy Kabot. Podés hablarme como a ChatGPT: pedime ideas, soporte, análisis, código, ventas o coordinación global. También podés cambiar tema, idioma y zona horaria desde el panel.', prompts: ['Actuá como ChatGPT y ayudame a mejorar mi negocio.', 'Explicame un tema complejo paso a paso.', 'Armá un flujo de ventas conversacional.', 'Compará horarios para coordinar una reunión global.', 'Ayudame a escribir o revisar un texto profesional.'], placeholder: 'Escribí tu mensaje... Por ejemplo: diseñá un flujo de soporte como ChatGPT', feature1Title: 'Personalización', feature1Text: 'Tema oscuro, azul, claro o beige; idioma ES/EN; preferencias persistidas en este navegador.', feature2Title: 'Chat tipo ChatGPT', feature2Text: 'Interfaz centrada en mensajes, prompts rápidos, copiar respuestas, exportar conversación y atajos de teclado.', feature3Title: 'Horario mundial', feature3Text: 'Atlas de zonas horarias con búsqueda, agrupación regional y reloj de referencia para coordinar equipos.' },
+      en: { tryChat: 'Try chat', docs: 'Docs', heroBadge: 'ChatGPT-like experience', heroTitle: 'A conversational, customizable, global bot.', heroText: 'Kabot now feels like a modern chat console: choose dark, blue, light, or beige; switch between Spanish and English; coordinate world time; and chat in demo mode or with a real backend.', start: 'Start chatting', repo: 'View repository', chipThemes: '4 themes', chipLang: 'Bilingual', chipWorld: 'World time', chipMemory: 'Local memory', metricThemes: 'Visual themes', metricLang: 'Language', metricTime: 'Time zones', panel: 'Panel', chat: 'Chat', control: 'Control center', controlText: 'Customize Kabot without leaving the conversation.', status: 'Status', modeDemo: 'Smart demo mode', modeApi: 'Real API configured', modeDemoText: 'Local replies when the backend is not deployed.', modeApiText: 'I try the configured backend and fall back to demo if it fails.', language: 'Language', theme: 'Visual theme', worldTime: 'World time', backend: 'Optional backend', saveConnection: 'Save connection', backDemo: 'Back to demo', reset: 'Reset conversation', subtitle: 'Ask it like ChatGPT: product, support, sales, learning, code, or automations.', download: 'Download chat', latest: 'Jump latest', send: 'Send', thinking: 'Thinking', chars: 'characters available', copied: 'Copied', copy: 'Copy', searchTimezone: 'Search time zone...', timezoneCount: 'time zones', noTimezones: 'No zones match that filter.', welcome: 'Hi! I am Kabot. Talk to me like ChatGPT: ask for ideas, support, analysis, code, sales, or global coordination. You can also change theme, language, and time zone from the panel.', prompts: ['Act like ChatGPT and help me improve my business.', 'Explain a complex topic step by step.', 'Build a conversational sales flow.', 'Compare times to coordinate a global meeting.', 'Help me write or review professional copy.'], placeholder: 'Write your message... Example: design a support flow like ChatGPT', feature1Title: 'Personalization', feature1Text: 'Dark, blue, light, or beige theme; ES/EN language; preferences persisted in this browser.', feature2Title: 'ChatGPT-like chat', feature2Text: 'Message-first interface, quick prompts, copy replies, export conversation, and keyboard shortcuts.', feature3Title: 'World time', feature3Text: 'Searchable time zone atlas grouped by region with a reference clock for team coordination.' }
+    };
+    const $ = (selector) => document.querySelector(selector);
+    const els = { messages: $('#messages'), form: $('#chatForm'), prompt: $('#prompt'), helper: $('#helper'), quick: $('#quickPrompts'), send: $('#sendButton'), apiForm: $('#apiForm'), apiInput: $('#apiUrl'), modeLabel: $('#modeLabel'), modeDescription: $('#modeDescription'), statusDot: $('#statusDot'), timezoneSelect: $('#timezoneSelect'), timezoneLabel: $('#timezoneLabel'), worldTime: $('#worldTime'), timezoneSearch: $('#timezoneSearch'), timezoneCount: $('#timezoneCount'), timezoneRegionList: $('#timezoneRegionList'), themeGrid: $('#themeGrid'), sidebar: $('#sidebar'), chatPanel: $('#chatPanel'), showPanel: $('#showPanel'), showChat: $('#showChat') };
+    let preferences = loadPreferences();
     let messages = loadMessages();
     let apiUrl = localStorage.getItem(API_KEY) || '';
-    apiInput.value = apiUrl;
+    els.apiInput.value = apiUrl;
 
-    if (localStorage.getItem(THEME_KEY) === 'light') document.body.classList.add('light');
+    function loadPreferences() { try { return { theme: 'dark', language: 'es', timezone: DEFAULT_TIMEZONE, ...(JSON.parse(localStorage.getItem(PREF_KEY) || '{}')) }; } catch (_) { return { theme: 'dark', language: 'es', timezone: DEFAULT_TIMEZONE }; } }
+    function savePreferences() { localStorage.setItem(PREF_KEY, JSON.stringify(preferences)); }
+    function t(key) { return COPY[preferences.language][key] || COPY.es[key] || key; }
+    function loadMessages() { try { const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); if (Array.isArray(saved) && saved.length) return saved; } catch (_) {} return [{ role: 'bot', content: COPY[preferences.language || 'es'].welcome, time: new Date().toISOString() }]; }
+    function saveMessages() { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-120))); }
+    function escapeHtml(value) { return value.replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char])); }
+    function timeLabel(value) { return new Intl.DateTimeFormat(preferences.language === 'es' ? 'es-AR' : 'en-US', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
+    function getTimezoneLabel(zone) { if (zone === 'UTC') return 'UTC'; const parts = zone.split('/'); const city = (parts.pop() || zone).replace(/_/g, ' '); const region = TIMEZONE_REGION_LABELS[parts[0]]?.[preferences.language] || parts[0] || 'UTC'; return `${city} · ${region}`; }
+    function getTimezoneRegion(zone) { return zone.includes('/') ? zone.split('/')[0] : zone; }
+    function formatTimezone(zone, options) { return new Intl.DateTimeFormat(preferences.language === 'es' ? 'es-AR' : 'en-US', { timeZone: zone, ...options }).format(new Date()); }
 
-    function loadMessages() {
-      try {
-        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
-        if (Array.isArray(saved) && saved.length) return saved;
-      } catch (_) {}
-      return [{ role: 'bot', content: '¡Hola! Soy Kabot. Puedo ayudarte a diseñar un asistente más humano, explicar el deploy o simular una conversación de producto. ¿Qué querés construir hoy?', time: new Date().toISOString() }];
-    }
+    function applyPreferences() { document.documentElement.lang = preferences.language; document.body.dataset.theme = preferences.theme; savePreferences(); document.querySelectorAll('[data-i18n]').forEach(node => { node.textContent = t(node.dataset.i18n); }); els.prompt.placeholder = t('placeholder'); els.timezoneSearch.placeholder = t('searchTimezone'); els.modeLabel.textContent = apiUrl ? t('modeApi') : t('modeDemo'); els.modeDescription.textContent = apiUrl ? t('modeApiText') : t('modeDemoText'); els.statusDot.classList.toggle('demo', !apiUrl); $('#langEs').classList.toggle('active', preferences.language === 'es'); $('#langEn').classList.toggle('active', preferences.language === 'en'); renderThemes(); renderTimezoneAtlas(); renderPrompts(); render(); updateCounter(); }
+    function renderThemes() { els.themeGrid.innerHTML = Object.entries(THEMES).map(([key, item]) => `<button type="button" class="theme-option ${preferences.theme === key ? 'active' : ''}" data-theme-option="${key}"><strong>${item.icon} ${item[preferences.language][0]}</strong><small>${item[preferences.language][1]}</small></button>`).join(''); }
+    function renderPrompts() { els.quick.innerHTML = t('prompts').map(prompt => `<button class="quick" type="button">${escapeHtml(prompt)}</button>`).join(''); }
+    function renderTimezoneAtlas() { const filter = els.timezoneSearch.value.trim().toLowerCase(); const filtered = TIMEZONES.filter(zone => `${zone} ${getTimezoneLabel(zone)}`.toLowerCase().includes(filter)); if (!TIMEZONES.includes(preferences.timezone)) preferences.timezone = DEFAULT_TIMEZONE; els.timezoneSelect.innerHTML = TIMEZONES.map(zone => `<option value="${zone}">${getTimezoneLabel(zone)} — ${zone}</option>`).join(''); els.timezoneSelect.value = preferences.timezone; els.timezoneLabel.textContent = getTimezoneLabel(preferences.timezone); els.worldTime.textContent = formatTimezone(preferences.timezone, { hour: '2-digit', minute: '2-digit', weekday: 'short', day: '2-digit', month: 'short' }); els.timezoneCount.textContent = `${filtered.length} / ${TIMEZONES.length} ${t('timezoneCount')}`; const groups = filtered.reduce((acc, zone) => { const raw = getTimezoneRegion(zone); const region = TIMEZONE_REGION_LABELS[raw]?.[preferences.language] || raw; acc[region] = [...(acc[region] || []), zone]; return acc; }, {}); els.timezoneRegionList.innerHTML = filtered.length ? Object.entries(groups).map(([region, zones]) => `<details ${filter || region === TIMEZONE_REGION_LABELS.America[preferences.language] ? 'open' : ''}><summary>${region}<span>${zones.length}</span></summary><div>${zones.map(zone => `<button type="button" class="${preferences.timezone === zone ? 'active' : ''}" data-timezone="${zone}"><span>${getTimezoneLabel(zone)}</span><small>${zone}</small></button>`).join('')}</div></details>`).join('') : `<p>${t('noTimezones')}</p>`; }
+    function render() { els.messages.innerHTML = messages.map((message, index) => `<article class="message ${message.role === 'user' ? 'user' : 'bot'}"><div class="message-meta"><span>${message.role === 'user' ? (preferences.language === 'es' ? 'Vos' : 'You') : 'Kabot'}</span><span>${timeLabel(message.time)}</span></div><p>${escapeHtml(message.content)}</p>${message.role === 'bot' ? `<button class="copy" type="button" data-copy="${index}">${t('copy')}</button>` : ''}</article>`).join(''); els.messages.scrollTop = els.messages.scrollHeight; saveMessages(); }
+    function addMessage(role, content) { messages.push({ role, content, time: new Date().toISOString() }); render(); }
+    function setTyping(active) { const existing = $('#typing'); if (existing) existing.remove(); if (!active) return; const typing = document.createElement('div'); typing.id = 'typing'; typing.className = 'typing'; typing.innerHTML = `${t('thinking')}<span>.</span><span>.</span><span>.</span>`; els.messages.appendChild(typing); els.messages.scrollTop = els.messages.scrollHeight; }
+    function localReply(text) { const lower = text.toLowerCase(); const lang = preferences.language; if (lower.includes('horario') || lower.includes('huso') || lower.includes('timezone') || lower.includes('time zone')) return lang === 'es' ? `Estoy usando ${getTimezoneLabel(preferences.timezone)} como referencia: ${formatTimezone(preferences.timezone, { hour: '2-digit', minute: '2-digit', weekday: 'long', day: '2-digit', month: 'long' })}. Podés buscar cualquier zona del planeta en el atlas horario y la mantengo como contexto.` : `I am using ${getTimezoneLabel(preferences.timezone)} as reference: ${formatTimezone(preferences.timezone, { hour: '2-digit', minute: '2-digit', weekday: 'long', day: '2-digit', month: 'long' })}. Search any world zone in the atlas and I will keep it as context.`; if (lower.includes('chatgpt') || lower.includes('como chat')) return lang === 'es' ? 'Para sentirme más como ChatGPT, uso una interfaz centrada en conversación, mantengo contexto local, te doy respuestas accionables, acepto prompts abiertos y puedo adaptar tono, idioma, tema visual y horario de referencia.' : 'To feel more like ChatGPT, I use a conversation-first interface, keep local context, provide actionable answers, accept open-ended prompts, and adapt tone, language, visual theme, and reference time.'; if (lower.includes('backend') || lower.includes('api') || lower.includes('render')) return lang === 'es' ? 'Para conectar la API real: publicá el backend Express, pegá su URL pública en “Backend opcional” y guardá. Si falla, vuelvo al modo demo para no cortar la experiencia.' : 'To connect the real API: deploy the Express backend, paste its public URL in “Optional backend,” and save. If it fails, I fall back to demo mode.'; return lang === 'es' ? 'Lo trabajaría como ChatGPT: primero detecto tu objetivo, después hago una pregunta aclaratoria si hace falta, propongo un plan concreto y cierro con próximos pasos. Si querés, lo convierto en un guion o checklist.' : 'I would handle it like ChatGPT: identify your goal, ask one clarifying question if needed, propose a concrete plan, and end with next steps. I can turn it into a script or checklist if you want.'; }
+    async function apiReply(text) { if (!apiUrl) return localReply(text); const base = apiUrl.replace(/\/$/, ''); try { let chatId = sessionStorage.getItem('kabot.live.chatId'); if (!chatId) { const created = await fetch(`${base}/api/chats`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' }); if (!created.ok) throw new Error('No se pudo crear el chat remoto.'); const data = await created.json(); chatId = data.chat.id; sessionStorage.setItem('kabot.live.chatId', chatId); } const prompt = `${text}\n\nContext: language=${preferences.language}, theme=${preferences.theme}, timezone=${getTimezoneLabel(preferences.timezone)} ${formatTimezone(preferences.timezone, { hour: '2-digit', minute: '2-digit' })}.`; const response = await fetch(`${base}/api/chats/${chatId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: prompt }) }); if (!response.ok) throw new Error('El backend no respondió correctamente.'); const data = await response.json(); const last = [...(data.messages || [])].reverse().find(message => message.role === 'assistant'); return last?.content || localReply(text); } catch (error) { console.warn(error); return `${localReply(text)}\n\n${preferences.language === 'es' ? 'Nota: intenté usar el backend configurado, pero no respondió. Seguí en modo demo.' : 'Note: I tried the configured backend, but it did not respond. I continued in demo mode.'}`; } }
+    function updateCounter() { els.helper.textContent = `${2000 - els.prompt.value.length} ${t('chars')}`; }
 
-    function saveMessages() { localStorage.setItem(STORAGE_KEY, JSON.stringify(messages.slice(-80))); }
-    function escapeHtml(value) { return value.replace(/[&<>"]/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[char])); }
-    function timeLabel(value) { return new Intl.DateTimeFormat('es-AR', { hour: '2-digit', minute: '2-digit' }).format(new Date(value)); }
-
-    function render() {
-      messagesEl.innerHTML = messages.map((message, index) => `
-        <article class="message ${message.role === 'user' ? 'user' : 'bot'}">
-          <div class="message-meta"><span>${message.role === 'user' ? 'Vos' : 'Kabot'}</span><span>${timeLabel(message.time)}</span></div>
-          <p>${escapeHtml(message.content)}</p>
-          ${message.role === 'bot' ? `<button class="copy" type="button" data-copy="${index}">Copiar</button>` : ''}
-        </article>
-      `).join('');
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-      saveMessages();
-    }
-
-    function renderMode() {
-      const connected = Boolean(apiUrl);
-      modeLabel.textContent = connected ? 'API real configurada' : 'Modo demo inteligente';
-      modeDescription.textContent = connected ? `Las consultas intentan usar ${apiUrl}. Si falla, Kabot vuelve al modo demo para no cortar la experiencia.` : 'Respuestas generadas localmente para que GitHub Pages funcione aunque el backend no esté desplegado.';
-      statusDot.classList.toggle('demo', !connected);
-    }
-
-    function addMessage(role, content) {
-      messages.push({ role, content, time: new Date().toISOString() });
-      render();
-    }
-
-    function setTyping(active) {
-      const existing = document.querySelector('#typing');
-      if (existing) existing.remove();
-      if (!active) return;
-      const typing = document.createElement('div');
-      typing.id = 'typing';
-      typing.className = 'typing';
-      typing.innerHTML = 'Kabot está pensando<span>.</span><span>.</span><span>.</span>';
-      messagesEl.appendChild(typing);
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    }
-
-    function localReply(text) {
-      const lower = text.toLowerCase();
-      if (lower.includes('backend') || lower.includes('api') || lower.includes('render')) {
-        return 'Para conectar la API real: publicá el backend Express en Render, copiá su URL pública, pegala en “Backend opcional” y guardá la conexión. Este sitio intentará llamar a /api/chats y /api/chats/:id/messages; si el backend no responde, vuelve al modo demo para mantener la conversación.';
-      }
-      if (lower.includes('natural') || lower.includes('robótico') || lower.includes('humano')) {
-        return 'Para que el bot suene natural conviene: 1) reconocer la intención antes de responder, 2) usar frases breves, 3) pedir un dato por vez, 4) confirmar próximos pasos y 5) adaptar el tono al contexto. Ejemplo: “Entiendo lo que buscás. Te propongo resolverlo en tres pasos y arrancamos por el más urgente”.';
-      }
-      if (lower.includes('lead') || lower.includes('ventas')) {
-        return 'Simulación breve:\n\nLead: “Quiero saber si esto sirve para mi negocio”.\nKabot: “Sí, puedo ayudarte a validarlo rápido. ¿Tu prioridad es captar consultas, responder soporte o calificar oportunidades?”\nLead: “Calificar”.\nKabot: “Perfecto. Entonces pediría rubro, presupuesto aproximado, urgencia y canal preferido. Con eso derivo solo oportunidades con contexto”.';
-      }
-      if (lower.includes('onboarding')) {
-        return 'Flujo de onboarding sugerido: bienvenida clara, pregunta de objetivo, selección de caso de uso, configuración mínima, prueba guiada, resumen de próximos pasos y opción de hablar con una persona. La clave es no pedir todo al inicio: el bot debe descubrir información progresivamente.';
-      }
-      return 'Buena idea. La convertiría en un flujo conversacional así: primero detecto el objetivo, después hago una pregunta aclaratoria, luego propongo una acción concreta y cierro con una opción de siguiente paso. Si querés, puedo transformarlo en un guion completo para tu caso de uso.';
-    }
-
-    async function apiReply(text) {
-      if (!apiUrl) return localReply(text);
-      const base = apiUrl.replace(/\/$/, '');
-      try {
-        let chatId = sessionStorage.getItem('kabot.live.chatId');
-        if (!chatId) {
-          const created = await fetch(`${base}/api/chats`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-          if (!created.ok) throw new Error('No se pudo crear el chat remoto.');
-          const data = await created.json();
-          chatId = data.chat.id;
-          sessionStorage.setItem('kabot.live.chatId', chatId);
-        }
-        const response = await fetch(`${base}/api/chats/${chatId}/messages`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) });
-        if (!response.ok) throw new Error('El backend no respondió correctamente.');
-        const data = await response.json();
-        const last = [...(data.messages || [])].reverse().find(message => message.role === 'assistant');
-        return last?.content || localReply(text);
-      } catch (error) {
-        console.warn(error);
-        return `${localReply(text)}\n\nNota: intenté usar el backend configurado, pero no respondió. Seguí en modo demo para que la experiencia no se interrumpa.`;
-      }
-    }
-
-    quickPrompts.forEach(prompt => {
-      const button = document.createElement('button');
-      button.type = 'button';
-      button.className = 'quick-prompt';
-      button.textContent = prompt;
-      button.addEventListener('click', () => { promptEl.value = prompt; updateCounter(); promptEl.focus(); });
-      quickEl.appendChild(button);
-    });
-
-    function updateCounter() { helperEl.textContent = `${1200 - promptEl.value.length} caracteres disponibles`; }
-    promptEl.addEventListener('input', updateCounter);
-    promptEl.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); form.requestSubmit(); } });
-
-    form.addEventListener('submit', async event => {
-      event.preventDefault();
-      const text = promptEl.value.trim();
-      if (!text) return;
-      addMessage('user', text);
-      promptEl.value = '';
-      updateCounter();
-      sendButton.disabled = true;
-      setTyping(true);
-      const reply = await apiReply(text);
-      await new Promise(resolve => setTimeout(resolve, Math.min(900 + text.length * 8, 1800)));
-      setTyping(false);
-      addMessage('bot', reply);
-      sendButton.disabled = false;
-      promptEl.focus();
-    });
-
-    messagesEl.addEventListener('click', event => {
-      const index = event.target?.dataset?.copy;
-      if (index === undefined) return;
-      navigator.clipboard?.writeText(messages[Number(index)].content);
-      event.target.textContent = 'Copiado';
-      setTimeout(() => { event.target.textContent = 'Copiar'; }, 1200);
-    });
-
-    apiForm.addEventListener('submit', event => {
-      event.preventDefault();
-      apiUrl = apiInput.value.trim();
-      if (apiUrl) localStorage.setItem(API_KEY, apiUrl); else localStorage.removeItem(API_KEY);
-      renderMode();
-    });
-    document.querySelector('#clearApi').addEventListener('click', () => { apiUrl = ''; apiInput.value = ''; localStorage.removeItem(API_KEY); sessionStorage.removeItem('kabot.live.chatId'); renderMode(); });
-    document.querySelector('#resetChat').addEventListener('click', () => { localStorage.removeItem(STORAGE_KEY); messages = loadMessages(); render(); });
-    document.querySelector('#downloadChat').addEventListener('click', () => {
-      const content = messages.map(message => `[${timeLabel(message.time)}] ${message.role === 'user' ? 'Vos' : 'Kabot'}: ${message.content}`).join('\n\n');
-      const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = Object.assign(document.createElement('a'), { href: url, download: 'kabot-chat.txt' });
-      a.click();
-      URL.revokeObjectURL(url);
-    });
-    document.querySelector('#themeToggle').addEventListener('click', () => { document.body.classList.toggle('light'); localStorage.setItem(THEME_KEY, document.body.classList.contains('light') ? 'light' : 'dark'); });
-
-    renderMode();
-    render();
-    updateCounter();
+    els.form.addEventListener('submit', async event => { event.preventDefault(); const text = els.prompt.value.trim(); if (!text) return; addMessage('user', text); els.prompt.value = ''; updateCounter(); els.send.disabled = true; setTyping(true); const reply = await apiReply(text); await new Promise(resolve => setTimeout(resolve, Math.min(700 + text.length * 6, 1500))); setTyping(false); addMessage('bot', reply); els.send.disabled = false; els.prompt.focus(); });
+    els.prompt.addEventListener('input', updateCounter); els.prompt.addEventListener('keydown', event => { if (event.key === 'Enter' && !event.shiftKey) { event.preventDefault(); els.form.requestSubmit(); } });
+    els.quick.addEventListener('click', event => { const button = event.target.closest('button'); if (!button) return; els.prompt.value = button.textContent; updateCounter(); els.prompt.focus(); });
+    els.messages.addEventListener('click', event => { const index = event.target?.dataset?.copy; if (index === undefined) return; navigator.clipboard?.writeText(messages[Number(index)].content); event.target.textContent = t('copied'); setTimeout(() => { event.target.textContent = t('copy'); }, 1200); });
+    els.apiForm.addEventListener('submit', event => { event.preventDefault(); apiUrl = els.apiInput.value.trim(); if (apiUrl) localStorage.setItem(API_KEY, apiUrl); else localStorage.removeItem(API_KEY); applyPreferences(); });
+    $('#clearApi').addEventListener('click', () => { apiUrl = ''; els.apiInput.value = ''; localStorage.removeItem(API_KEY); sessionStorage.removeItem('kabot.live.chatId'); applyPreferences(); });
+    $('#resetChat').addEventListener('click', () => { localStorage.removeItem(STORAGE_KEY); messages = [{ role: 'bot', content: t('welcome'), time: new Date().toISOString() }]; render(); });
+    $('#downloadChat').addEventListener('click', () => { const content = messages.map(message => `[${timeLabel(message.time)}] ${message.role === 'user' ? (preferences.language === 'es' ? 'Vos' : 'You') : 'Kabot'}: ${message.content}`).join('\n\n'); const blob = new Blob([content], { type: 'text/plain;charset=utf-8' }); const url = URL.createObjectURL(blob); const a = Object.assign(document.createElement('a'), { href: url, download: 'kabot-chat.txt' }); a.click(); URL.revokeObjectURL(url); });
+    $('#jumpLatest').addEventListener('click', () => { els.messages.scrollTop = els.messages.scrollHeight; });
+    $('#langEs').addEventListener('click', () => { preferences.language = 'es'; applyPreferences(); }); $('#langEn').addEventListener('click', () => { preferences.language = 'en'; applyPreferences(); });
+    els.themeGrid.addEventListener('click', event => { const button = event.target.closest('[data-theme-option]'); if (!button) return; preferences.theme = button.dataset.themeOption; applyPreferences(); });
+    els.timezoneSelect.addEventListener('change', event => { preferences.timezone = event.target.value; applyPreferences(); }); els.timezoneSearch.addEventListener('input', renderTimezoneAtlas); els.timezoneRegionList.addEventListener('click', event => { const button = event.target.closest('button[data-timezone]'); if (!button) return; preferences.timezone = button.dataset.timezone; applyPreferences(); });
+    els.showPanel.addEventListener('click', () => { els.sidebar.classList.add('mobile-visible'); els.chatPanel.classList.remove('mobile-visible'); els.showPanel.classList.add('active'); els.showChat.classList.remove('active'); });
+    els.showChat.addEventListener('click', () => { els.chatPanel.classList.add('mobile-visible'); els.sidebar.classList.remove('mobile-visible'); els.showChat.classList.add('active'); els.showPanel.classList.remove('active'); });
+    setInterval(renderTimezoneAtlas, 30000);
+    applyPreferences();
   </script>
 </body>
 </html>
