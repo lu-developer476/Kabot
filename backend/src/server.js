@@ -8,11 +8,12 @@ import { env } from './env.js';
 const app = express();
 const PORT = Number(process.env.PORT || 4000);
 const HOST = '0.0.0.0';
-const CHAT_CONTEXT_WINDOW_SIZE = 16;
+const CHAT_CONTEXT_WINDOW_SIZE = env.CHAT_CONTEXT_WINDOW_SIZE;
 const JSON_BODY_LIMIT = '100kb';
 const MAX_USER_MESSAGE_LENGTH = 4000;
 const MAX_CHAT_TITLE_LENGTH = 80;
 const DEFAULT_CHAT_TITLE = 'Nueva conversación';
+const UUID_V4_OR_COMPATIBLE_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const { FRONTEND_URL, APP_NAME, APP_DESCRIPTION, ASSISTANT_TONE, ASSISTANT_LANGUAGE, SYSTEM_PROMPT } = env;
 const allowedOrigins = new Set(
   FRONTEND_URL.split(',')
@@ -69,6 +70,14 @@ function compactTitle(value, fallback = DEFAULT_CHAT_TITLE) {
 
 function titleFromMessage(content) {
   return compactTitle(content, DEFAULT_CHAT_TITLE);
+}
+
+function validateChatId(req, res, next) {
+  if (!UUID_V4_OR_COMPATIBLE_PATTERN.test(req.params.chatId || '')) {
+    return res.status(400).json({ error: 'El identificador del chat no es válido.' });
+  }
+
+  return next();
 }
 
 function validateUserMessage(rawContent) {
@@ -207,6 +216,7 @@ app.get('/api/config', (_req, res) => {
     assistantTone: ASSISTANT_TONE,
     assistantLanguage: ASSISTANT_LANGUAGE,
     maxUserMessageLength: MAX_USER_MESSAGE_LENGTH,
+    chatContextWindowSize: CHAT_CONTEXT_WINDOW_SIZE,
   });
 });
 
@@ -240,7 +250,7 @@ app.post('/api/chats', async (req, res) => {
   }
 });
 
-app.patch('/api/chats/:chatId', async (req, res) => {
+app.patch('/api/chats/:chatId', validateChatId, async (req, res) => {
   try {
     const title = compactTitle(req.body?.title);
     const result = await query(
@@ -261,7 +271,7 @@ app.patch('/api/chats/:chatId', async (req, res) => {
   }
 });
 
-app.delete('/api/chats/:chatId', async (req, res) => {
+app.delete('/api/chats/:chatId', validateChatId, async (req, res) => {
   try {
     const result = await query('delete from chats where id = $1 returning id', [req.params.chatId]);
 
@@ -275,9 +285,14 @@ app.delete('/api/chats/:chatId', async (req, res) => {
   }
 });
 
-app.get('/api/chats/:chatId/messages', async (req, res) => {
+app.get('/api/chats/:chatId/messages', validateChatId, async (req, res) => {
   try {
     const { chatId } = req.params;
+    const chatExists = await query('select id from chats where id = $1 limit 1', [chatId]);
+    if (chatExists.rowCount === 0) {
+      return res.status(404).json({ error: 'El chat no existe.' });
+    }
+
     const result = await query(
       `select id, role, content, created_at
        from messages
@@ -286,7 +301,7 @@ app.get('/api/chats/:chatId/messages', async (req, res) => {
       [chatId]
     );
 
-    res.json({ messages: result.rows });
+    return res.json({ messages: result.rows });
   } catch (error) {
     return sendError(
       res,
@@ -298,7 +313,7 @@ app.get('/api/chats/:chatId/messages', async (req, res) => {
   }
 });
 
-app.post('/api/chats/:chatId/messages', async (req, res) => {
+app.post('/api/chats/:chatId/messages', validateChatId, async (req, res) => {
   const { chatId } = req.params;
   const validation = validateUserMessage(req.body?.content);
 
@@ -327,7 +342,7 @@ app.post('/api/chats/:chatId/messages', async (req, res) => {
   }
 });
 
-app.post('/api/chats/:chatId/messages/stream', async (req, res) => {
+app.post('/api/chats/:chatId/messages/stream', validateChatId, async (req, res) => {
   const { chatId } = req.params;
   const validation = validateUserMessage(req.body?.content);
 
@@ -413,6 +428,7 @@ const server = app.listen(PORT, HOST, () => {
     environment: process.env.NODE_ENV || 'development',
     port: PORT,
     allowedOrigins: Array.from(allowedOrigins),
+    chatContextWindowSize: CHAT_CONTEXT_WINDOW_SIZE,
   });
 });
 
