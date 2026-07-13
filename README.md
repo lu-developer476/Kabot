@@ -1,6 +1,29 @@
 # Kabot
 
-Kabot es un chatbot full stack con identidad visual, preparado para correr localmente y para un deploy simple en Vercel + Render sin cambiar su arquitectura base.
+<p align="center">
+  <img alt="Node.js 20" src="https://img.shields.io/badge/Node.js-20.x-339933?logo=node.js&logoColor=white" />
+  <img alt="Next.js 15" src="https://img.shields.io/badge/Next.js-15-000000?logo=next.js&logoColor=white" />
+  <img alt="React 19" src="https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=111111" />
+  <img alt="Express" src="https://img.shields.io/badge/Express-4-000000?logo=express&logoColor=white" />
+  <img alt="OpenAI API" src="https://img.shields.io/badge/OpenAI-API-412991?logo=openai&logoColor=white" />
+  <img alt="PostgreSQL" src="https://img.shields.io/badge/PostgreSQL-Supabase-4169E1?logo=postgresql&logoColor=white" />
+  <img alt="Vercel" src="https://img.shields.io/badge/Deploy-Vercel-000000?logo=vercel&logoColor=white" />
+  <img alt="Render" src="https://img.shields.io/badge/Deploy-Render-46E3B7?logo=render&logoColor=111111" />
+</p>
+
+
+Kabot es un asistente conversacional full stack en estado funcional. El proyecto combina una landing pública para GitHub Pages, una aplicación Next.js con experiencia de chat en tiempo real y una API Express conectada a PostgreSQL + OpenAI, preparado para correr localmente y para deploy simple en Vercel + Render sin cambiar su arquitectura base.
+
+
+## Estado actual del proyecto
+
+- **Landing pública lista:** `index.html` permite publicar una demo en GitHub Pages sin build ni backend, con modo demo local y opción de conectar una API real publicada.
+- **Frontend operativo:** la app en `frontend/` usa Next.js 15 + React 19 con una interfaz tipo “atlas holográfico”, selector bilingüe ES/EN, temas visuales, densidad de lectura, preferencias persistidas en `localStorage`, borradores por chat, búsqueda de conversaciones y selector global de zonas horarias.
+- **Chat en tiempo real:** la UI consume Server-Sent Events para mostrar tokens progresivos, conserva un fallback JSON y sincroniza el historial canónico al finalizar cada respuesta.
+- **Backend funcional:** la API Express expone healthcheck, configuración pública del asistente, CRUD básico de chats y endpoints de mensajes con streaming o respuesta tradicional.
+- **Persistencia:** PostgreSQL/Supabase guarda chats y mensajes completos; el backend envía al modelo una ventana reciente configurable para reducir tokens, costo y latencia sin perder historial en la base.
+- **Configuración robusta:** el backend valida variables obligatorias, CORS, tamaños de payload, mensajes de usuario y URLs de origen; el frontend bloquea el envío si `NEXT_PUBLIC_API_URL` falta o es inválida.
+- **Deploy previsto:** frontend en Vercel, backend en Render y base en Supabase, con Node.js 20.x como versión recomendada.
 
 
 ## Sitio GitHub Pages
@@ -11,17 +34,19 @@ La página pública funciona sin build ni backend gracias a un modo demo local, 
 
 ## Stack
 
-- **Frontend:** React + Next.js 15
-- **Backend:** Node.js + Express
-- **IA:** OpenAI API
-- **Base de datos:** PostgreSQL (Supabase)
-- **Deploy:** Vercel (frontend) + Render (backend)
+- **Frontend:** Next.js 15.2.4 + React 19.0.0
+- **Backend:** Node.js 20.x + Express 4
+- **IA:** OpenAI API mediante el SDK oficial `openai`
+- **Base de datos:** PostgreSQL (Supabase) con `pg`
+- **Comunicación en vivo:** Server-Sent Events para streaming de tokens
+- **Deploy:** Vercel (frontend) + Render (backend) + GitHub Pages (landing demo)
 - **Versión de Node recomendada:** 20.x (alineada con `engines`)
 
 ## Estructura
 
 ```bash
 kabot/
+├── index.html  # Landing demo para GitHub Pages
 ├── frontend/   # Next.js app
 └── backend/    # Express API
 ```
