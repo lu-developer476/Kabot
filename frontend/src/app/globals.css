@@ -87,7 +87,7 @@ select { width: 100%; padding: 10px 11px; border-radius: 14px; border: 1px solid
 .header-actions { display: flex; gap: 10px; flex-wrap: wrap; justify-content: flex-end; }
 .chat-search { width: 100%; padding: 12px 13px; border-radius: 16px; border: 1px solid var(--line); background: var(--panel-strong); color: var(--text); outline: none; }
 .chat-search:focus { border-color: var(--line-strong); box-shadow: 0 0 0 4px color-mix(in srgb, var(--brand) 10%, transparent); }
-.conversation-pulse { display: grid; grid-template-columns: repeat(3, 1fr); gap: 9px; padding: 14px; border-radius: 22px; border: 1px solid var(--line); background: color-mix(in srgb, var(--panel-strong) 56%, transparent); }
+.conversation-pulse { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; padding: 14px; border-radius: 22px; border: 1px solid var(--line); background: color-mix(in srgb, var(--panel-strong) 56%, transparent); }
 .conversation-pulse h2, .conversation-pulse small { grid-column: 1 / -1; margin: 0; }
 .conversation-pulse h2 { font-size: .95rem; }
 .conversation-pulse div { display: grid; gap: 2px; padding: 10px; border-radius: 14px; background: color-mix(in srgb, var(--brand) 9%, transparent); }

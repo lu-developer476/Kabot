@@ -70,7 +70,7 @@ kabot/
 
 - Kabot sigue guardando **todo** el historial del chat en PostgreSQL.
 - Al consultar OpenAI, el backend envía siempre el `SYSTEM_PROMPT` más una ventana reciente de mensajes del chat.
-- Esa ventana se controla con la constante `CHAT_CONTEXT_WINDOW_SIZE` en `backend/src/server.js` y por defecto usa los últimos `16` mensajes.
+- Esa ventana se controla con la variable `CHAT_CONTEXT_WINDOW_SIZE` del backend y por defecto usa los últimos `16` mensajes.
 - Los mensajes se mantienen en orden cronológico para no romper el contexto reciente.
 - Este recorte solo reduce tokens, costo y latencia hacia OpenAI; no cambia lo que se almacena ni lo que luego se puede recuperar desde la base.
 
@@ -94,6 +94,7 @@ DATABASE_URL=postgresql://postgres:password@db.xxx.supabase.co:5432/postgres?ssl
 OPENAI_API_KEY=sk-...
 FRONTEND_URL=http://localhost:3000,https://mi-frontend.vercel.app
 OPENAI_MODEL=gpt-4.1-mini
+CHAT_CONTEXT_WINDOW_SIZE=16
 APP_NAME=Kabot
 APP_DESCRIPTION=un asistente conversacional en tiempo real para soporte, análisis, creatividad, aprendizaje y automatización
 ASSISTANT_TONE=profesional, claro, práctico y cercano
@@ -113,6 +114,7 @@ Si falta cualquiera de esas dos variables, el backend registra un error claro en
 - `PORT` → `4000` en local. En Render conviene dejar que la plataforma inyecte su propio puerto.
 - `FRONTEND_URL` → `http://localhost:3000` (acepta una o varias URLs separadas por comas)
 - `OPENAI_MODEL` → `gpt-4.1-mini`
+- `CHAT_CONTEXT_WINDOW_SIZE` → `16` (entero entre `1` y `100`; controla cuántos mensajes recientes se envían al modelo)
 - `APP_NAME` → `Kabot`
 - `APP_DESCRIPTION` → describe el alcance del asistente; por defecto contempla soporte, análisis, creatividad, aprendizaje y automatización
 - `ASSISTANT_TONE` → define la personalidad visible del bot
@@ -188,6 +190,7 @@ npm run lint
 - Los mensajes de usuario se validan antes de guardarse y antes de enviarse a OpenAI.
 - Se rechazan mensajes vacíos, no textuales o de más de `4000` caracteres con errores `400` claros.
 - Requests con JSON inválido responden `400`, rutas inexistentes responden `404` JSON consistente y bodies demasiado grandes responden `413`.
+- Las rutas con `:chatId` validan el formato UUID antes de consultar PostgreSQL, evitando errores 500 por identificadores mal formados y devolviendo `400` claros.
 - Los errores del backend ahora salen por una vía común, con contexto útil en logs sin agregar dependencias extra.
 - El proceso maneja `SIGINT` y `SIGTERM` para cerrar HTTP + PostgreSQL de forma ordenada durante deploys o reinicios.
 
@@ -219,6 +222,7 @@ DATABASE_URL=postgresql://...
 OPENAI_API_KEY=...
 FRONTEND_URL=https://TU-FRONTEND.vercel.app
 OPENAI_MODEL=gpt-4.1-mini
+CHAT_CONTEXT_WINDOW_SIZE=16
 APP_NAME=Kabot
 SYSTEM_PROMPT=Eres Kabot...
 ```
@@ -248,7 +252,7 @@ Notas:
 ## Endpoints
 
 - `GET /health`
-- `GET /api/config`
+- `GET /api/config` (incluye metadatos públicos y `chatContextWindowSize`)
 - `GET /api/chats`
 - `POST /api/chats`
 - `PATCH /api/chats/:chatId`

@@ -6,6 +6,7 @@ const DEFAULT_ENV = {
   ASSISTANT_TONE: 'profesional, claro, práctico y cercano',
   ASSISTANT_LANGUAGE: 'español',
   SYSTEM_PROMPT: '',
+  CHAT_CONTEXT_WINDOW_SIZE: '16',
 };
 
 function readEnv(name, fallback) {
@@ -41,6 +42,19 @@ function ensureFrontendUrls(name, value) {
   }
 
   return normalizedUrls.join(',');
+}
+
+function ensurePositiveInteger(name, value, fallback) {
+  const parsed = Number.parseInt(value, 10);
+
+  if (!Number.isInteger(parsed) || parsed < 1 || parsed > 100) {
+    console.error(
+      `Error de configuración: la variable ${name} debe ser un entero entre 1 y 100. Valor recibido: ${value || '(vacío)'}.`
+    );
+    process.exit(1);
+  }
+
+  return parsed || Number.parseInt(fallback, 10);
 }
 
 function ensureRequired(name) {
@@ -89,4 +103,9 @@ export const env = {
   ASSISTANT_TONE,
   ASSISTANT_LANGUAGE,
   SYSTEM_PROMPT: readEnv('SYSTEM_PROMPT', fallbackSystemPrompt),
+  CHAT_CONTEXT_WINDOW_SIZE: ensurePositiveInteger(
+    'CHAT_CONTEXT_WINDOW_SIZE',
+    readEnv('CHAT_CONTEXT_WINDOW_SIZE', DEFAULT_ENV.CHAT_CONTEXT_WINDOW_SIZE),
+    DEFAULT_ENV.CHAT_CONTEXT_WINDOW_SIZE
+  ),
 };
