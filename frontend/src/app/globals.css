@@ -186,3 +186,13 @@ body {
   .timezone-atlas { max-height: 300px; min-height: 180px; }
   .timezone-region-list details > div { grid-template-columns: 1fr; }
 }
+
+/* Version 1.5.0 quality-of-life additions. */
+.release-list { display: grid; gap: 8px; margin: 0; padding: 0; list-style: none; }
+.release-list li { position: relative; padding-left: 24px; color: var(--muted); line-height: 1.45; font-weight: 800; }
+.release-list li::before { content: '✦'; position: absolute; left: 0; color: var(--brand); }
+.preflight-card { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; align-items: center; padding: 12px 14px; border: 1px solid color-mix(in srgb, var(--brand) 28%, var(--line)); border-radius: 18px; background: linear-gradient(135deg, color-mix(in srgb, var(--brand) 11%, transparent), color-mix(in srgb, var(--panel-strong) 58%, transparent)); }
+.preflight-card strong { color: var(--text); }
+.preflight-card span { justify-self: end; color: var(--accent); font-weight: 950; }
+.preflight-card small { grid-column: 1 / -1; color: var(--muted); font-weight: 800; }
+@media (max-width: 640px) { .preflight-card { grid-template-columns: 1fr; } .preflight-card span { justify-self: start; } }
