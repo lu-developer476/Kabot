@@ -1,6 +1,6 @@
 export const metadata = {
-  title: 'Kabot',
-  description: 'Chatbot con Next.js, Express, OpenAI y Supabase',
+  title: 'Kabot — pensamiento que avanza',
+  description: 'Un espacio de trabajo conversacional para pensar, decidir y avanzar.',
 };
 
 export default function RootLayout({ children }) {
